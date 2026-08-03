@@ -109,7 +109,7 @@
 
       <section class="view" data-view-panel="history">
         <div class="section-heading"><div><h3>Run history</h3><p>Persistent job status, coverage and downloadable outputs.</p></div><button class="text-button" id="refresh-history">Refresh</button></div>
-        <section class="content-card table-card"><div id="history-list" class="history-list"><div class="inline-empty">Loading history…</div></div></section>
+        <section class="content-card table-card"><div class="table-scroll"><table class="history-table"><thead><tr><th>Source</th><th>Started</th><th>Listings</th><th>Contacts</th><th>Status</th><th>Files</th></tr></thead><tbody id="history-list"><tr><td colspan="6">Loading run history…</td></tr></tbody></table></div></section>
       </section>
 
       <section class="view" data-view-panel="sources">
@@ -123,11 +123,16 @@
           <form id="data-filters" class="data-filters">
             <input id="property-search" type="search" placeholder="Search title, address, city or source">
             <select id="property-kind"><option value="mapped">Platform mapped</option><option value="raw">Raw normalized</option></select>
-            <select id="property-source"><option value="">All sources</option></select>
             <button class="secondary-button" type="submit">Apply filters</button>
           </form>
-          <div class="table-scroll"><table class="data-table"><thead><tr><th>Property</th><th>Source</th><th>Price</th><th>Contact</th><th>Saved</th></tr></thead><tbody id="property-rows"><tr><td colspan="5">Loading saved data…</td></tr></tbody></table></div>
-          <div class="pagination"><button id="previous-page" class="text-button">← Previous</button><span id="page-copy">Page 1</span><button id="next-page" class="text-button">Next →</button></div>
+          <div class="data-library-layout">
+            <aside class="property-group-panel"><div class="property-group-heading">Websites</div><div id="property-groups" class="property-groups"><div class="inline-empty">Loading websites…</div></div></aside>
+            <div class="property-record-panel">
+              <div class="property-record-heading"><div><strong id="selected-source-name">Select a website</strong><small id="selected-source-count"></small></div></div>
+              <div class="table-scroll"><table class="data-table"><thead><tr><th>Property</th><th>Price</th><th>Contact</th><th>Saved</th></tr></thead><tbody id="property-rows"><tr><td colspan="4">Select a website to browse its properties.</td></tr></tbody></table></div>
+              <div class="pagination"><button id="previous-page" class="text-button">Previous</button><span id="page-copy">Page 1</span><button id="next-page" class="text-button">Next</button></div>
+            </div>
+          </div>
         </section>
       </section>
     </main>

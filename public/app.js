@@ -31,7 +31,9 @@ const elements = {
   dataFilters: document.querySelector('#data-filters'),
   propertySearch: document.querySelector('#property-search'),
   propertyKind: document.querySelector('#property-kind'),
-  propertySource: document.querySelector('#property-source'),
+  propertyGroups: document.querySelector('#property-groups'),
+  selectedSourceName: document.querySelector('#selected-source-name'),
+  selectedSourceCount: document.querySelector('#selected-source-count'),
   propertyRows: document.querySelector('#property-rows'),
   recordCountChip: document.querySelector('#record-count-chip'),
   previousPage: document.querySelector('#previous-page'),
@@ -51,6 +53,7 @@ let dashboardData = null;
 let pollTimer = null;
 let propertyPage = 1;
 let propertyTotal = 0;
+let selectedPropertySource = '';
 const propertyLimit = 25;
 
 function escapeHtml(value) {
@@ -133,7 +136,7 @@ function switchView(view) {
   showError('');
   if (selected === 'history') loadHistory();
   if (selected === 'sources' && dashboardData) renderSources(dashboardData.sources || []);
-  if (selected === 'data') loadProperties();
+  if (selected === 'data') loadPropertyGroups();
 }
 
 function metricCard(label, value, note) {
@@ -174,12 +177,6 @@ function renderSources(sources) {
   }).join('');
 }
 
-function populateSourceFilter(sources) {
-  const selected = elements.propertySource.value;
-  elements.propertySource.innerHTML = '<option value="">All sources</option>' + sources.map((source) => `<option value="${escapeHtml(source.url)}">${escapeHtml(hostname(source.url))}</option>`).join('');
-  if ([...elements.propertySource.options].some((option) => option.value === selected)) elements.propertySource.value = selected;
-}
-
 async function loadDashboard() {
   try {
     const data = await api('/api/dashboard');
@@ -194,7 +191,6 @@ async function loadDashboard() {
     renderRecentRuns(data.recentJobs || []);
     renderSourceSummary(data.sources || []);
     renderSources(data.sources || []);
-    populateSourceFilter(data.sources || []);
     const active = (data.recentJobs || []).find((job) => ['queued', 'running'].includes(job.status));
     if (active) {
       renderJob(active);
@@ -260,21 +256,23 @@ async function pollJob(id) {
 }
 
 async function loadHistory() {
-  elements.historyList.innerHTML = '<div class="inline-empty">Loading run history…</div>';
+  elements.historyList.innerHTML = '<tr><td colspan="6">Loading run history…</td></tr>';
   try {
     const jobs = await api('/api/jobs?limit=50');
     if (!jobs.length) {
-      elements.historyList.innerHTML = '<div class="inline-empty">No saved runs yet.</div>';
+      elements.historyList.innerHTML = '<tr><td colspan="6">No saved runs yet.</td></tr>';
       return;
     }
-    elements.historyList.innerHTML = jobs.map((job, index) => {
+    elements.historyList.innerHTML = jobs.map((job) => {
       const source = job.results?.[0]?.url || job.currentUrl || 'Run without completed source';
+      const sourceCount = Math.max(job.results?.length || 0, job.total || 0);
       const coverage = contactCoverage(job);
       const downloads = (job.results || []).flatMap((result) => Object.entries(result.downloads || {}).filter(([, url]) => url).map(([kind, url]) => ({ kind, url })));
-      return `<article class="history-row"><span class="history-index">${String(index + 1).padStart(2, '0')}</span><div class="history-main"><strong title="${escapeHtml(source)}">${escapeHtml(hostname(source))}</strong><small>${escapeHtml(formatDate(job.createdAt))} · <span class="status-dot ${escapeHtml(job.status)}">${escapeHtml(job.status)}</span></small></div><div class="history-cell"><strong>${formatNumber(totalRecords(job))}</strong><small>records</small></div><div class="history-cell"><strong>${formatNumber(coverage.withEmail)} / ${formatNumber(coverage.withPhone)}</strong><small>email / phone</small></div><div class="history-actions">${downloads.slice(0, 3).map(({ kind, url }) => `<a href="${escapeHtml(url)}">${escapeHtml(kind)}</a>`).join('')}</div></article>`;
+      const moreSources = sourceCount > 1 ? ` +${sourceCount - 1} more` : '';
+      return `<tr><td class="history-main"><strong title="${escapeHtml(source)}">${escapeHtml(hostname(source))}${escapeHtml(moreSources)}</strong><small>Run ${escapeHtml(job.id)}</small></td><td>${escapeHtml(formatDate(job.createdAt))}</td><td><strong>${formatNumber(totalRecords(job))}</strong></td><td class="history-contact"><span>${formatNumber(coverage.withEmail)} email</span><span>${formatNumber(coverage.withPhone)} phone</span></td><td><span class="status-label ${escapeHtml(job.status)}">${escapeHtml(job.status)}</span>${job.error ? `<small class="history-error" title="${escapeHtml(job.error)}">${escapeHtml(job.error)}</small>` : ''}</td><td><div class="history-actions">${downloads.slice(0, 3).map(({ kind, url }) => `<a href="${escapeHtml(url)}">${kind === 'mapped' ? 'Mapped' : kind === 'raw' ? 'Raw' : 'Report'}</a>`).join('') || '<span>—</span>'}</div></td></tr>`;
     }).join('');
   } catch (error) {
-    elements.historyList.innerHTML = `<div class="inline-empty">${escapeHtml(error.message)}</div>`;
+    elements.historyList.innerHTML = `<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`;
   }
 }
 
@@ -285,21 +283,57 @@ function firstContact(record, type) {
   return singular || direct || source || '';
 }
 
+function renderPropertyGroups(groups) {
+  elements.propertyGroups.innerHTML = groups.map((group) => `<button type="button" class="property-group${group.url === selectedPropertySource ? ' active' : ''}" data-source="${escapeHtml(group.url)}"><span><strong>${escapeHtml(hostname(group.url))}</strong><small>${formatNumber(group.withEmail)} email · ${formatNumber(group.withPhone)} phone</small></span><b>${formatNumber(group.count)}</b></button>`).join('');
+  elements.propertyGroups.querySelectorAll('.property-group').forEach((button) => button.addEventListener('click', () => {
+    selectedPropertySource = button.dataset.source;
+    propertyPage = 1;
+    renderPropertyGroups(groups);
+    loadProperties();
+  }));
+}
+
+async function loadPropertyGroups() {
+  elements.propertyGroups.innerHTML = '<div class="inline-empty">Loading websites…</div>';
+  const params = new URLSearchParams({ kind: elements.propertyKind.value });
+  if (elements.propertySearch.value.trim()) params.set('search', elements.propertySearch.value.trim());
+  try {
+    const groups = await api(`/api/property-sources?${params}`);
+    const allRecords = groups.reduce((sum, group) => sum + (group.count || 0), 0);
+    elements.recordCountChip.textContent = `${formatNumber(allRecords)} record${allRecords === 1 ? '' : 's'}`;
+    if (!groups.length) {
+      selectedPropertySource = '';
+      elements.propertyGroups.innerHTML = '<div class="inline-empty">No websites match these filters.</div>';
+      elements.selectedSourceName.textContent = 'No website selected';
+      elements.selectedSourceCount.textContent = '';
+      elements.propertyRows.innerHTML = '<tr><td colspan="4">No saved properties match these filters.</td></tr>';
+      return;
+    }
+    if (!groups.some((group) => group.url === selectedPropertySource)) selectedPropertySource = groups[0].url;
+    renderPropertyGroups(groups);
+    await loadProperties();
+  } catch (error) {
+    elements.propertyGroups.innerHTML = `<div class="inline-empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
 async function loadProperties() {
-  elements.propertyRows.innerHTML = '<tr><td colspan="5">Loading saved data…</td></tr>';
+  if (!selectedPropertySource) return;
+  elements.propertyRows.innerHTML = '<tr><td colspan="4">Loading saved data…</td></tr>';
   const params = new URLSearchParams({ page: propertyPage, limit: propertyLimit, kind: elements.propertyKind.value });
   if (elements.propertySearch.value.trim()) params.set('search', elements.propertySearch.value.trim());
-  if (elements.propertySource.value) params.set('sourceUrl', elements.propertySource.value);
+  params.set('sourceUrl', selectedPropertySource);
   try {
     const data = await api(`/api/properties?${params}`);
     propertyTotal = data.total || 0;
-    elements.recordCountChip.textContent = `${formatNumber(propertyTotal)} record${propertyTotal === 1 ? '' : 's'}`;
+    elements.selectedSourceName.textContent = hostname(selectedPropertySource);
+    elements.selectedSourceCount.textContent = `${formatNumber(propertyTotal)} ${elements.propertyKind.value} record${propertyTotal === 1 ? '' : 's'}`;
     const totalPages = Math.max(1, Math.ceil(propertyTotal / propertyLimit));
     elements.pageCopy.textContent = `Page ${data.page} of ${totalPages}`;
     elements.previousPage.disabled = propertyPage <= 1;
     elements.nextPage.disabled = propertyPage >= totalPages;
     if (!data.items.length) {
-      elements.propertyRows.innerHTML = '<tr><td colspan="5">No saved properties match these filters.</td></tr>';
+      elements.propertyRows.innerHTML = '<tr><td colspan="4">No saved properties match these filters.</td></tr>';
       return;
     }
     elements.propertyRows.innerHTML = data.items.map((item) => {
@@ -308,10 +342,10 @@ async function loadProperties() {
       const phone = firstContact(record, 'phones');
       const title = record.title || record.address || 'Untitled property';
       const address = record.address || record.city || 'Address not captured';
-      return `<tr><td class="property-title"><strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong><small title="${escapeHtml(address)}">${escapeHtml(address)}</small></td><td><strong>${escapeHtml(hostname(item.sourceUrl))}</strong><br><span class="status-dot ${escapeHtml(item.kind)}">${escapeHtml(item.kind)}</span></td><td>${escapeHtml(formatPrice(record))}</td><td class="contact-stack">${email ? `<span title="${escapeHtml(email)}">${escapeHtml(email)}</span>` : ''}${phone ? `<span title="${escapeHtml(phone)}">${escapeHtml(phone)}</span>` : ''}${!email && !phone ? '<span>Not captured</span>' : ''}</td><td>${escapeHtml(formatDate(item.savedAt))}</td></tr>`;
+      return `<tr><td class="property-title"><strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong><small title="${escapeHtml(address)}">${escapeHtml(address)}</small></td><td>${escapeHtml(formatPrice(record))}</td><td class="contact-stack">${email ? `<span title="${escapeHtml(email)}">${escapeHtml(email)}</span>` : ''}${phone ? `<span title="${escapeHtml(phone)}">${escapeHtml(phone)}</span>` : ''}${!email && !phone ? '<span>Not captured</span>' : ''}</td><td>${escapeHtml(formatDate(item.savedAt))}</td></tr>`;
     }).join('');
   } catch (error) {
-    elements.propertyRows.innerHTML = `<tr><td colspan="5">${escapeHtml(error.message)}</td></tr>`;
+    elements.propertyRows.innerHTML = `<tr><td colspan="4">${escapeHtml(error.message)}</td></tr>`;
   }
 }
 
@@ -372,7 +406,7 @@ elements.runForm.addEventListener('submit', async (event) => {
   }
 });
 
-elements.dataFilters.addEventListener('submit', (event) => { event.preventDefault(); propertyPage = 1; loadProperties(); });
+elements.dataFilters.addEventListener('submit', (event) => { event.preventDefault(); propertyPage = 1; loadPropertyGroups(); });
 elements.previousPage.addEventListener('click', () => { if (propertyPage > 1) { propertyPage -= 1; loadProperties(); } });
 elements.nextPage.addEventListener('click', () => { if (propertyPage * propertyLimit < propertyTotal) { propertyPage += 1; loadProperties(); } });
 document.querySelector('#refresh-dashboard').addEventListener('click', () => Promise.all([loadDashboard(), loadStorage()]));

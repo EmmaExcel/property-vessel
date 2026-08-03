@@ -385,6 +385,18 @@ app.get('/api/properties', async (req, res) => {
   }
 });
 
+app.get('/api/property-sources', async (req, res) => {
+  try {
+    const sources = await mongo.listPropertySources({
+      kind: req.query.kind || 'mapped',
+      search: req.query.search || undefined,
+    });
+    return res.json(sources);
+  } catch (error) {
+    return res.status(503).json({ error: `Could not group saved properties: ${error.message}` });
+  }
+});
+
 app.get('/api/jobs/:id', async (req, res) => {
   const job = jobs.get(req.params.id);
   if (job) return res.json(publicJob(job));

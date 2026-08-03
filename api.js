@@ -493,6 +493,26 @@ app.get('/api/property-sources', async (req, res) => {
   }
 });
 
+app.get('/api/properties/:jobId/:resultIndex/:position', async (req, res) => {
+  try {
+    const resultIndex = Number.parseInt(req.params.resultIndex, 10);
+    const position = Number.parseInt(req.params.position, 10);
+    if (!Number.isInteger(resultIndex) || resultIndex < 0 || !Number.isInteger(position) || position < 0) {
+      return res.status(400).json({ error: 'Invalid property record identifier.' });
+    }
+    const property = await mongo.getProperty({
+      jobId: req.params.jobId,
+      resultIndex,
+      position,
+      kind: req.query.kind || 'mapped',
+    });
+    if (!property) return res.status(404).json({ error: 'Saved property record not found.' });
+    return res.json(property);
+  } catch (error) {
+    return res.status(503).json({ error: `Could not load the complete property record: ${error.message}` });
+  }
+});
+
 app.get('/api/jobs/:id', async (req, res) => {
   const job = jobs.get(req.params.id);
   if (job) return res.json(publicJob(job));

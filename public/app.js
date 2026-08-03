@@ -39,6 +39,20 @@ const elements = {
   previousPage: document.querySelector('#previous-page'),
   nextPage: document.querySelector('#next-page'),
   pageCopy: document.querySelector('#page-copy'),
+  nutlipCountChip: document.querySelector('#nutlip-count-chip'),
+  nutlipSourceList: document.querySelector('#nutlip-source-list'),
+  nutlipRecordList: document.querySelector('#nutlip-record-list'),
+  nutlipPrevious: document.querySelector('#nutlip-previous'),
+  nutlipNext: document.querySelector('#nutlip-next'),
+  nutlipPageCopy: document.querySelector('#nutlip-page-copy'),
+  nutlipEmpty: document.querySelector('#nutlip-empty'),
+  nutlipDetail: document.querySelector('#nutlip-detail'),
+  nutlipTitle: document.querySelector('#nutlip-title'),
+  nutlipQuality: document.querySelector('#nutlip-quality'),
+  nutlipFields: document.querySelector('#nutlip-fields'),
+  nutlipJson: document.querySelector('#nutlip-json'),
+  copyNutlip: document.querySelector('#copy-nutlip'),
+  downloadNutlip: document.querySelector('#download-nutlip'),
 };
 
 const viewNames = {
@@ -47,6 +61,7 @@ const viewNames = {
   history: ['Audit trail', 'Run history'],
   sources: ['Coverage', 'Source websites'],
   data: ['MongoDB', 'Data library'],
+  nutlip: ['Platform schema', 'Nutlip output'],
 };
 
 let dashboardData = null;
@@ -55,6 +70,12 @@ let propertyPage = 1;
 let propertyTotal = 0;
 let selectedPropertySource = '';
 const propertyLimit = 25;
+let nutlipSource = '';
+let nutlipPage = 1;
+let nutlipTotal = 0;
+let nutlipGroups = [];
+let selectedNutlipRecord = null;
+const nutlipLimit = 20;
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>'"]/g, (character) => ({
@@ -137,6 +158,7 @@ function switchView(view) {
   if (selected === 'history') loadHistory();
   if (selected === 'sources' && dashboardData) renderSources(dashboardData.sources || []);
   if (selected === 'data') loadPropertyGroups();
+  if (selected === 'nutlip') loadNutlipSources();
 }
 
 function metricCard(label, value, note) {
@@ -351,6 +373,112 @@ async function loadProperties() {
   }
 }
 
+function renderNutlipSources() {
+  elements.nutlipSourceList.innerHTML = nutlipGroups.map((group) => `<button type="button" class="property-group${group.url === nutlipSource ? ' active' : ''}" data-source="${escapeHtml(group.url)}"><span><strong>${escapeHtml(hostname(group.url))}</strong><small>${formatNumber(group.withEmail)} email · ${formatNumber(group.withPhone)} phone</small></span><b>${formatNumber(group.count)}</b></button>`).join('');
+  elements.nutlipSourceList.querySelectorAll('.property-group').forEach((button) => button.addEventListener('click', () => {
+    nutlipSource = button.dataset.source;
+    nutlipPage = 1;
+    selectedNutlipRecord = null;
+    renderNutlipSources();
+    loadNutlipRecords();
+  }));
+}
+
+async function loadNutlipSources() {
+  elements.nutlipSourceList.innerHTML = '<div class="inline-empty">Loading websites…</div>';
+  try {
+    nutlipGroups = await api('/api/property-sources?kind=mapped');
+    const total = nutlipGroups.reduce((sum, group) => sum + (group.count || 0), 0);
+    elements.nutlipCountChip.textContent = `${formatNumber(total)} mapped record${total === 1 ? '' : 's'}`;
+    if (!nutlipGroups.length) {
+      nutlipSource = '';
+      elements.nutlipSourceList.innerHTML = '<div class="inline-empty">No mapped websites yet.</div>';
+      elements.nutlipRecordList.innerHTML = '<div class="inline-empty">Run a source in reusable mapping or AI per-record mode first.</div>';
+      return;
+    }
+    if (!nutlipGroups.some((group) => group.url === nutlipSource)) nutlipSource = nutlipGroups[0].url;
+    renderNutlipSources();
+    await loadNutlipRecords();
+  } catch (error) {
+    elements.nutlipSourceList.innerHTML = `<div class="inline-empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+async function loadNutlipRecords() {
+  if (!nutlipSource) return;
+  elements.nutlipRecordList.innerHTML = '<div class="inline-empty">Loading mapped properties…</div>';
+  const params = new URLSearchParams({ kind: 'mapped', sourceUrl: nutlipSource, page: nutlipPage, limit: nutlipLimit });
+  try {
+    const data = await api(`/api/properties?${params}`);
+    nutlipTotal = data.total || 0;
+    const pages = Math.max(1, Math.ceil(nutlipTotal / nutlipLimit));
+    elements.nutlipPageCopy.textContent = `Page ${data.page} of ${pages}`;
+    elements.nutlipPrevious.disabled = nutlipPage <= 1;
+    elements.nutlipNext.disabled = nutlipPage >= pages;
+    if (!data.items.length) {
+      elements.nutlipRecordList.innerHTML = '<div class="inline-empty">No mapped properties for this website.</div>';
+      return;
+    }
+    elements.nutlipRecordList.innerHTML = data.items.map((item) => {
+      const record = item.record || {};
+      const title = record.title || record.address || 'Untitled property';
+      const key = `${item.jobId}:${item.resultIndex}:${item.position}`;
+      const activeKey = selectedNutlipRecord ? `${selectedNutlipRecord.jobId}:${selectedNutlipRecord.resultIndex}:${selectedNutlipRecord.position}` : '';
+      return `<button type="button" class="nutlip-record${key === activeKey ? ' active' : ''}" data-job="${escapeHtml(item.jobId)}" data-result="${item.resultIndex}" data-position="${item.position}"><strong title="${escapeHtml(title)}">${escapeHtml(title)}</strong><span>${escapeHtml(formatPrice(record))}</span><small>${escapeHtml(record.address || record.city || 'Address not captured')}</small></button>`;
+    }).join('');
+    elements.nutlipRecordList.querySelectorAll('.nutlip-record').forEach((button) => button.addEventListener('click', () => loadNutlipRecord({
+      jobId: button.dataset.job,
+      resultIndex: Number(button.dataset.result),
+      position: Number(button.dataset.position),
+    })));
+    if (!selectedNutlipRecord) {
+      const first = data.items[0];
+      await loadNutlipRecord({ jobId: first.jobId, resultIndex: first.resultIndex, position: first.position });
+    }
+  } catch (error) {
+    elements.nutlipRecordList.innerHTML = `<div class="inline-empty">${escapeHtml(error.message)}</div>`;
+  }
+}
+
+function schemaValue(value) {
+  if (value === null || value === undefined || value === '') return '<span class="schema-empty">Not provided</span>';
+  if (Array.isArray(value)) {
+    if (!value.length) return '<span class="schema-empty">None</span>';
+    return `<div class="schema-array">${value.slice(0, 12).map((item) => `<span>${escapeHtml(typeof item === 'object' ? JSON.stringify(item) : item)}</span>`).join('')}${value.length > 12 ? `<span>+${value.length - 12} more</span>` : ''}</div>`;
+  }
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'object') return `<code>${escapeHtml(JSON.stringify(value))}</code>`;
+  return escapeHtml(value);
+}
+
+function renderNutlipInspector(storedProperty) {
+  const record = storedProperty.record || {};
+  selectedNutlipRecord = storedProperty;
+  elements.nutlipEmpty.classList.add('hidden');
+  elements.nutlipDetail.classList.remove('hidden');
+  elements.nutlipTitle.textContent = record.title || record.address || 'Untitled property';
+  const normalization = record._normalization || {};
+  const confidence = Number.isFinite(Number(normalization.confidence)) ? `${Math.round(Number(normalization.confidence) * 100)}% confidence` : 'Confidence unavailable';
+  const review = normalization.requiresReview ? 'Needs review' : 'Ready';
+  elements.nutlipQuality.innerHTML = `<span class="${normalization.requiresReview ? 'review' : 'ready'}">${escapeHtml(review)}</span><span>${escapeHtml(confidence)}</span><span>${escapeHtml(record.salesPlatform || hostname(storedProperty.sourceUrl))}</span>`;
+  const excluded = new Set(['_source', '_normalization']);
+  const fields = Object.entries(record).filter(([key]) => !excluded.has(key));
+  elements.nutlipFields.innerHTML = fields.map(([key, value]) => `<div class="nutlip-field"><dt>${escapeHtml(key)}</dt><dd>${schemaValue(value)}</dd></div>`).join('');
+  const sourceContact = record._source?.contact || {};
+  elements.nutlipFields.innerHTML += `<div class="nutlip-field nutlip-contact-field"><dt>Preserved source contact</dt><dd>${schemaValue([...(sourceContact.emails || []), ...(sourceContact.phones || [])])}</dd></div>`;
+  elements.nutlipJson.textContent = JSON.stringify(record, null, 2);
+  document.querySelectorAll('.nutlip-record').forEach((button) => button.classList.toggle('active', button.dataset.job === storedProperty.jobId && Number(button.dataset.result) === storedProperty.resultIndex && Number(button.dataset.position) === storedProperty.position));
+}
+
+async function loadNutlipRecord(identifier) {
+  try {
+    const document = await api(`/api/properties/${encodeURIComponent(identifier.jobId)}/${identifier.resultIndex}/${identifier.position}?kind=mapped`);
+    renderNutlipInspector(document);
+  } catch (error) {
+    showError(error.message);
+  }
+}
+
 async function initialiseWorkspace(username) {
   showApp(username);
   switchView('overview');
@@ -411,6 +539,22 @@ elements.runForm.addEventListener('submit', async (event) => {
 elements.dataFilters.addEventListener('submit', (event) => { event.preventDefault(); propertyPage = 1; loadPropertyGroups(); });
 elements.previousPage.addEventListener('click', () => { if (propertyPage > 1) { propertyPage -= 1; loadProperties(); } });
 elements.nextPage.addEventListener('click', () => { if (propertyPage * propertyLimit < propertyTotal) { propertyPage += 1; loadProperties(); } });
+elements.nutlipPrevious.addEventListener('click', () => { if (nutlipPage > 1) { nutlipPage -= 1; selectedNutlipRecord = null; loadNutlipRecords(); } });
+elements.nutlipNext.addEventListener('click', () => { if (nutlipPage * nutlipLimit < nutlipTotal) { nutlipPage += 1; selectedNutlipRecord = null; loadNutlipRecords(); } });
+elements.copyNutlip.addEventListener('click', async () => {
+  if (!selectedNutlipRecord) return;
+  await navigator.clipboard.writeText(JSON.stringify(selectedNutlipRecord.record, null, 2));
+  elements.copyNutlip.textContent = 'Copied';
+  setTimeout(() => { elements.copyNutlip.textContent = 'Copy JSON'; }, 1500);
+});
+elements.downloadNutlip.addEventListener('click', () => {
+  if (!selectedNutlipRecord) return;
+  const blob = new Blob([`${JSON.stringify(selectedNutlipRecord.record, null, 2)}\n`], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const anchor = Object.assign(document.createElement('a'), { href: url, download: `${hostname(selectedNutlipRecord.sourceUrl)}-${selectedNutlipRecord.position}-nutlip.json` });
+  anchor.click();
+  URL.revokeObjectURL(url);
+});
 document.querySelector('#refresh-dashboard').addEventListener('click', () => Promise.all([loadDashboard(), loadStorage()]));
 document.querySelector('#refresh-history').addEventListener('click', loadHistory);
 

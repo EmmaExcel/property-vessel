@@ -35,6 +35,7 @@
         <button class="nav-item" data-view="history">Run history</button>
         <button class="nav-item" data-view="sources">Sources</button>
         <button class="nav-item" data-view="data">Data library</button>
+        <button class="nav-item" data-view="nutlip">Nutlip output</button>
       </nav>
       <div class="sidebar-bottom">
         <div class="storage-state"><span id="storage-dot"></span><div><strong id="storage-label">Checking storage</strong><small id="storage-copy">Connecting…</small></div></div>
@@ -133,6 +134,23 @@
               <div class="pagination"><button id="previous-page" class="text-button">Previous</button><span id="page-copy">Page 1</span><button id="next-page" class="text-button">Next</button></div>
             </div>
           </div>
+        </section>
+      </section>
+
+      <section class="view" data-view-panel="nutlip">
+        <div class="section-heading"><div><h3>Nutlip schema output</h3><p>Inspect the complete final platform record exactly as it is stored.</p></div><span id="nutlip-count-chip" class="info-chip">0 mapped records</span></div>
+        <section class="content-card nutlip-shell">
+          <aside class="nutlip-sources"><div class="property-group-heading">Websites</div><div id="nutlip-source-list"><div class="inline-empty">Loading websites…</div></div></aside>
+          <section class="nutlip-records"><div class="property-group-heading">Properties</div><div id="nutlip-record-list"><div class="inline-empty">Select a website.</div></div><div class="nutlip-list-pagination"><button id="nutlip-previous" class="text-button">Previous</button><span id="nutlip-page-copy">Page 1</span><button id="nutlip-next" class="text-button">Next</button></div></section>
+          <section class="nutlip-inspector">
+            <div id="nutlip-empty" class="nutlip-empty"><strong>Select a property</strong><p>The complete mapped schema will appear here.</p></div>
+            <div id="nutlip-detail" class="hidden">
+              <div class="nutlip-detail-header"><div><span>Final mapped record</span><h3 id="nutlip-title"></h3></div><div><button id="copy-nutlip" class="secondary-button">Copy JSON</button><button id="download-nutlip" class="secondary-button">Download</button></div></div>
+              <div id="nutlip-quality" class="nutlip-quality"></div>
+              <div id="nutlip-fields" class="nutlip-fields"></div>
+              <details class="nutlip-json"><summary>Exact JSON</summary><pre id="nutlip-json"></pre></details>
+            </div>
+          </section>
         </section>
       </section>
     </main>

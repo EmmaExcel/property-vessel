@@ -1,0 +1,18 @@
+services:
+  property-vessel:
+    build: .
+    container_name: property-vessel
+    restart: unless-stopped
+    init: true
+    env_file:
+      - .env
+    environment:
+      PORT: 3000
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+      PUPPETEER_CONTAINER: "true"
+    # Tailscale Serve runs on the VM and privately proxies this local port.
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./data:/app/data
+    shm_size: "1gb"

@@ -1,0 +1,5 @@
+data/
+*-listings.json
+test/
+.codex/
+.agents/

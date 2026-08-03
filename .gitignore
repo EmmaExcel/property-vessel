@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.local
+data/*
+!data/mappings/
+!data/mappings/*.json
+*-listings.json
+test/
+.codex/
+.agents/

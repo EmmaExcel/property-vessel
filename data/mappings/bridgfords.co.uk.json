@@ -1,0 +1,40 @@
+{
+  "fieldMap": {
+    "title": { "path": "raw.displayAddress" },
+    "purpose": { "path": "raw.channel", "transform": "purposeMap" },
+    "location": { "path": "raw.addressWithCommas" },
+    "price": { "path": "raw.priceValue", "transform": "toNumber" },
+    "images": { "path": "raw.propertyIndexPhotos", "transform": "extractUrls" },
+    "address": { "path": "raw.addressWithCommas" },
+    "landmark": null,
+    "radius": null,
+    "city": { "path": "raw.town" },
+    "typeOfProperty": { "path": "raw.type" },
+    "bedrooms": { "path": "raw.bedrooms", "transform": "toNumber" },
+    "bathrooms": { "path": "raw.bathrooms", "transform": "toNumber" },
+    "toilets": null,
+    "livingRoom": { "path": "raw.receptionRooms", "transform": "toNumber" },
+    "size": { "path": "raw.squareFeetInternal", "transform": "appendUnit", "args": { "unit": "sqft" } },
+    "tenureOfProperty": null,
+    "description": { "path": "raw.shortDescription", "transform": "stripHtml" },
+    "amount": { "path": "raw.priceValue", "transform": "toNumber" },
+    "minimum_offer": null,
+    "currency": { "path": "raw.price", "transform": "currencyFromSymbol" },
+    "add_features": null,
+    "video_link": null,
+    "virtual_tour_link": null,
+    "floorPlan": null,
+    "PCM": null,
+    "PCW": null,
+    "subType": { "path": "raw.type" }
+  },
+  "confidence": 0.96,
+  "unmappedFields": ["branchName", "branchEmail", "status", "postcode", "lat", "lng", "agency_name", "agency_url"],
+  "notes": [
+    "Deterministic Homeflow sales mapping created after the live model returned malformed JSON.",
+    "Branch contacts, source URLs, coordinates, status, postcode, and untouched raw data remain in _source."
+  ],
+  "_model": "deterministic-reviewed",
+  "_generatedAt": "2026-08-03T00:00:00.000Z",
+  "_sampleCount": 3
+}

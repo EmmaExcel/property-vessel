@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: property-vessel
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=300
+      - key: PUPPETEER_EXECUTABLE_PATH
+        value: /usr/bin/chromium
+      - key: PUPPETEER_CONTAINER
+        value: "true"
+      - key: MAX_ACTIVE_JOBS
+        value: "1"
+      - key: MONGODB_REQUIRED
+        value: "true"
+      - key: MONGODB_DB
+        value: property_vessel
+      - key: APP_USERNAME
+        value: admin
+      - key: APP_PASSWORD
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

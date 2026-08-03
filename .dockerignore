@@ -1,0 +1,12 @@
+node_modules
+.env
+.env.local
+.git
+.codex
+.agents
+test
+data/runs
+data/ai-normalized
+data/*-listings.json
+data/*.report.json
+npm-debug.log*

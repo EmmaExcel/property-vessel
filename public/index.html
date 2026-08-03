@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Scrape property listings, preserve source data and map records to your platform schema.">
+  <title>Property Vessel — Listing Intake</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Property Vessel home">
+      <span class="brand-mark">PV</span>
+      <span><strong>Property Vessel</strong><small>Listing intake studio</small></span>
+    </a>
+    <div class="system-status"><span></span> Local engine ready</div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="eyebrow">Source → structure → ship</div>
+      <h1>Bring property inventory<br><em>into one clean schema.</em></h1>
+      <p>Paste listing pages from estate-agent websites. The engine discovers records, enriches their details, preserves public contacts and prepares platform-ready JSON.</p>
+      <div class="trust-row">
+        <span>Lossless raw source</span><span>Contact preservation</span><span>Review safeguards</span>
+      </div>
+    </section>
+
+    <section class="workspace" aria-label="New scraper run">
+      <form id="run-form" class="run-panel">
+        <div class="panel-heading">
+          <div><span class="step">01</span><h2>New intake run</h2></div>
+          <span class="limit">Up to 10 sources</span>
+        </div>
+
+        <label for="urls">Listing page URLs <span>one per line</span></label>
+        <textarea id="urls" name="urls" rows="7" required spellcheck="false" placeholder="https://agent-site.co.uk/properties/for-sale/&#10;https://another-agent.com/search/sales/"></textarea>
+        <p class="field-note">Use an estate agent’s search or results page—not its homepage.</p>
+
+        <div class="choice-grid">
+          <label class="choice active">
+            <input type="radio" name="aiMode" value="map" checked>
+            <span><strong>Reusable AI map</strong><small>Recommended · one recipe per source</small></span>
+          </label>
+          <label class="choice">
+            <input type="radio" name="aiMode" value="record">
+            <span><strong>AI every record</strong><small>Slower · higher API usage</small></span>
+          </label>
+          <label class="choice">
+            <input type="radio" name="aiMode" value="none">
+            <span><strong>Scrape only</strong><small>Normalized source data, no platform draft</small></span>
+          </label>
+        </div>
+
+        <div class="switch-row">
+          <label class="switch"><input id="deep" type="checkbox" checked><span></span><b>Enrich detail pages</b></label>
+          <label class="switch"><input id="scope" type="checkbox"><span></span><b>Discover extra search areas</b></label>
+        </div>
+
+        <details>
+          <summary>Advanced limits</summary>
+          <div class="advanced-grid">
+            <label>Maximum result pages<input id="max-pages" type="number" min="1" max="1000" value="500"></label>
+            <label>Maximum detail pages<input id="max-details" type="number" min="1" max="5000" value="100"></label>
+          </div>
+        </details>
+
+        <button id="submit-button" class="primary-button" type="submit">
+          <span>Start intake run</span><span class="arrow">↗</span>
+        </button>
+        <p id="form-error" class="error-message" role="alert"></p>
+      </form>
+
+      <aside class="side-panel">
+        <div class="panel-heading"><div><span class="step">02</span><h2>Run activity</h2></div></div>
+        <div id="empty-state" class="empty-state">
+          <div class="radar"><i></i><i></i><b></b></div>
+          <h3>Ready for a source</h3>
+          <p>Your progress, validation signals and downloads will appear here.</p>
+        </div>
+        <div id="job-state" class="job-state hidden" aria-live="polite">
+          <div class="status-line"><span id="status-badge" class="status-badge">Queued</span><span id="progress-copy">Preparing run…</span></div>
+          <div class="progress"><span id="progress-bar"></span></div>
+          <p id="current-url" class="current-url"></p>
+          <div id="results" class="results"></div>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <footer><span>Property Vessel</span><span>Runs locally. Your keys and source data stay on this machine.</span></footer>
+  <script src="/app.js" defer></script>
+</body>
+</html>

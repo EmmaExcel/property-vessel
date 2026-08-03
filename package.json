@@ -1,0 +1,28 @@
+{
+  "name": "listing-scraper",
+  "version": "1.0.0",
+  "description": "Local web app and CLI for scraping and mapping property listings without losing source data.",
+  "main": "scraper.js",
+  "bin": {
+    "listing-scraper": "./scraper.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "cli": "node scraper.js",
+    "api": "node api.js",
+    "web": "node api.js",
+    "scrape": "node scraper.js scrape",
+    "discover": "node scraper.js discover",
+    "extract": "node scraper.js extract",
+    "normalize-existing": "node scraper.js normalize-existing",
+    "test": "node test/scraper.test.js"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "express": "^5.2.1",
+    "mongodb": "^6.21.0",
+    "puppeteer": "^22.0.0"
+  }
+}

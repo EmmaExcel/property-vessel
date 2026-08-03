@@ -24,6 +24,8 @@ services:
         value: admin
       - key: APP_PASSWORD
         sync: false
+      - key: APP_SESSION_SECRET
+        generateValue: true
       - key: MONGODB_URI
         sync: false
       - key: OPENROUTER_API_KEY

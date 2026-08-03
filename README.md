@@ -9,12 +9,14 @@ On macOS, double-click `Launch Property Vessel.command` in this folder. It
 starts the local scraper and opens the control panel in your browser at
 `http://localhost:3000`.
 
-The browser app accepts up to ten listing-page URLs per run. It supports detail
-enrichment, optional search-area discovery, reusable AI mapping, per-record AI
-mapping, raw-only scraping, live run status, contact coverage, review counts,
-and downloads for raw JSON, platform JSON, and the audit report. Each browser
-run is stored in its own folder under `data/runs/`, so one run does not
-overwrite another.
+The private operations dashboard accepts up to ten listing-page URLs per run.
+It includes a proper sign-in screen, workspace metrics, live run monitoring,
+persistent history, per-source contact coverage, and a searchable MongoDB data
+library. Scrapes support detail enrichment, optional search-area discovery,
+reusable AI mapping, per-record AI mapping, raw-only output, review counts, and
+downloads for raw JSON, platform JSON, and the audit report. Each browser run
+is stored in its own folder under `data/runs/`, so one run does not overwrite
+another.
 
 ### Persistent MongoDB storage (free Atlas tier)
 
@@ -35,9 +37,10 @@ MONGODB_DB=property_vessel
 MONGODB_REQUIRED=true
 ```
 
-`GET /api/storage` reports whether the app is using MongoDB or local storage,
-and `GET /api/jobs` returns recent saved runs. Without `MONGODB_URI`, existing
-local filesystem and in-memory behavior continues to work.
+`GET /api/storage` reports whether the app is using MongoDB, `GET /api/jobs`
+returns recent saved runs, and the authenticated `/api/dashboard` and
+`/api/properties` routes supply the operations views. Without `MONGODB_URI`,
+existing local filesystem and in-memory behavior continues to work.
 
 The app runs locally because scraping needs Chrome, filesystem access, and your
 private AI credentials. Keep `.env` private and do not expose port 3000 to the

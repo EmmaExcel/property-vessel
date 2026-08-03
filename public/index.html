@@ -3,94 +3,138 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Scrape property listings, preserve source data and map records to your platform schema.">
-  <title>Property Vessel — Listing Intake</title>
+  <meta name="description" content="Private property scraping, mapping and data operations dashboard.">
+  <title>Property Vessel — Operations</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <div class="ambient ambient-one"></div>
-  <div class="ambient ambient-two"></div>
-  <header class="topbar">
-    <a class="brand" href="/" aria-label="Property Vessel home">
-      <span class="brand-mark">PV</span>
-      <span><strong>Property Vessel</strong><small>Listing intake studio</small></span>
-    </a>
-    <div class="system-status"><span></span> Local engine ready</div>
-  </header>
-
-  <main>
-    <section class="hero">
-      <div class="eyebrow">Source → structure → ship</div>
-      <h1>Bring property inventory<br><em>into one clean schema.</em></h1>
-      <p>Paste listing pages from estate-agent websites. The engine discovers records, enriches their details, preserves public contacts and prepares platform-ready JSON.</p>
-      <div class="trust-row">
-        <span>Lossless raw source</span><span>Contact preservation</span><span>Review safeguards</span>
+  <section id="login-screen" class="login-screen">
+    <div class="login-card">
+      <div class="login-brand"><span class="brand-mark">PV</span><span><strong>Property Vessel</strong><small>Data operations</small></span></div>
+      <div class="login-copy">
+        <span class="secure-label">Private workspace</span>
+        <h1>Sign in to continue</h1>
+        <p>Access scraper runs, source coverage and saved platform data.</p>
       </div>
-    </section>
-
-    <section class="workspace" aria-label="New scraper run">
-      <form id="run-form" class="run-panel">
-        <div class="panel-heading">
-          <div><span class="step">01</span><h2>New intake run</h2></div>
-          <span class="limit">Up to 10 sources</span>
-        </div>
-
-        <label for="urls">Listing page URLs <span>one per line</span></label>
-        <textarea id="urls" name="urls" rows="7" required spellcheck="false" placeholder="https://agent-site.co.uk/properties/for-sale/&#10;https://another-agent.com/search/sales/"></textarea>
-        <p class="field-note">Use an estate agent’s search or results page—not its homepage.</p>
-
-        <div class="choice-grid">
-          <label class="choice active">
-            <input type="radio" name="aiMode" value="map" checked>
-            <span><strong>Reusable AI map</strong><small>Recommended · one recipe per source</small></span>
-          </label>
-          <label class="choice">
-            <input type="radio" name="aiMode" value="record">
-            <span><strong>AI every record</strong><small>Slower · higher API usage</small></span>
-          </label>
-          <label class="choice">
-            <input type="radio" name="aiMode" value="none">
-            <span><strong>Scrape only</strong><small>Normalized source data, no platform draft</small></span>
-          </label>
-        </div>
-
-        <div class="switch-row">
-          <label class="switch"><input id="deep" type="checkbox" checked><span></span><b>Enrich detail pages</b></label>
-          <label class="switch"><input id="scope" type="checkbox"><span></span><b>Discover extra search areas</b></label>
-        </div>
-
-        <details>
-          <summary>Advanced limits</summary>
-          <div class="advanced-grid">
-            <label>Maximum result pages<input id="max-pages" type="number" min="1" max="1000" value="500"></label>
-            <label>Maximum detail pages<input id="max-details" type="number" min="1" max="5000" value="100"></label>
-          </div>
-        </details>
-
-        <button id="submit-button" class="primary-button" type="submit">
-          <span>Start intake run</span><span class="arrow">↗</span>
-        </button>
-        <p id="form-error" class="error-message" role="alert"></p>
+      <form id="login-form" class="login-form">
+        <label for="login-username">Username</label>
+        <input id="login-username" name="username" autocomplete="username" required>
+        <label for="login-password">Password</label>
+        <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+        <button type="submit" class="primary-button"><span>Sign in</span><span>→</span></button>
+        <p id="login-error" class="error-message" role="alert"></p>
       </form>
+      <p class="login-foot">Credentials are verified by the server and never stored in the browser.</p>
+    </div>
+  </section>
 
-      <aside class="side-panel">
-        <div class="panel-heading"><div><span class="step">02</span><h2>Run activity</h2></div></div>
-        <div id="empty-state" class="empty-state">
-          <div class="radar"><i></i><i></i><b></b></div>
-          <h3>Ready for a source</h3>
-          <p>Your progress, validation signals and downloads will appear here.</p>
-        </div>
-        <div id="job-state" class="job-state hidden" aria-live="polite">
-          <div class="status-line"><span id="status-badge" class="status-badge">Queued</span><span id="progress-copy">Preparing run…</span></div>
-          <div class="progress"><span id="progress-bar"></span></div>
-          <p id="current-url" class="current-url"></p>
-          <div id="results" class="results"></div>
-        </div>
-      </aside>
-    </section>
-  </main>
+  <div id="app-shell" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="sidebar-brand"><span class="brand-mark">PV</span><span><strong>Property Vessel</strong><small>Operations console</small></span></div>
+      <nav class="nav-list" aria-label="Main navigation">
+        <button class="nav-item active" data-view="overview"><span class="nav-icon">01</span><span>Overview</span></button>
+        <button class="nav-item" data-view="scrape"><span class="nav-icon">02</span><span>New scrape</span></button>
+        <button class="nav-item" data-view="history"><span class="nav-icon">03</span><span>Run history</span></button>
+        <button class="nav-item" data-view="sources"><span class="nav-icon">04</span><span>Sources</span></button>
+        <button class="nav-item" data-view="data"><span class="nav-icon">05</span><span>Data library</span></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="storage-state"><span id="storage-dot"></span><div><strong id="storage-label">Checking storage</strong><small id="storage-copy">Connecting…</small></div></div>
+        <button id="logout-button" class="logout-button">Sign out</button>
+      </div>
+    </aside>
 
-  <footer><span>Property Vessel</span><span>Runs locally. Your keys and source data stay on this machine.</span></footer>
+    <main class="main-area">
+      <header class="app-header">
+        <div><span id="page-kicker">Operations</span><h2 id="page-title">Overview</h2></div>
+        <div class="header-actions"><span id="user-pill" class="user-pill">admin</span><button class="header-run" data-view-target="scrape">＋ New scrape</button></div>
+      </header>
+
+      <div id="global-error" class="global-error hidden" role="alert"></div>
+
+      <section class="view active" data-view-panel="overview">
+        <div class="section-heading"><div><h3>Workspace summary</h3><p>Scraping, mapping and contact coverage across saved runs.</p></div><button class="text-button" id="refresh-dashboard">Refresh data</button></div>
+        <div id="metric-grid" class="metric-grid">
+          <article class="metric-card loading-card"></article><article class="metric-card loading-card"></article><article class="metric-card loading-card"></article><article class="metric-card loading-card"></article>
+        </div>
+        <div class="overview-grid">
+          <section class="content-card">
+            <div class="card-header"><div><h3>Recent runs</h3><p>Latest activity across all sources</p></div><button class="text-button" data-view-target="history">View all</button></div>
+            <div id="recent-runs" class="activity-list"><div class="inline-empty">Loading recent runs…</div></div>
+          </section>
+          <section class="content-card">
+            <div class="card-header"><div><h3>Source coverage</h3><p>Most recently processed websites</p></div><button class="text-button" data-view-target="sources">View sources</button></div>
+            <div id="source-summary" class="source-list"><div class="inline-empty">Loading source coverage…</div></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" data-view-panel="scrape">
+        <div class="section-heading"><div><h3>Start a scraper run</h3><p>Extract listings, enrich details and map them to the platform schema.</p></div><span class="info-chip">Maximum 10 source URLs</span></div>
+        <div class="scrape-grid">
+          <form id="run-form" class="content-card run-form">
+            <label for="urls">Listing or search-page URLs <span>One URL per line</span></label>
+            <textarea id="urls" rows="7" required spellcheck="false" placeholder="https://agent-site.co.uk/properties/for-sale/"></textarea>
+            <p class="field-note">Use a results page rather than a homepage. Start with a small page limit when testing a new source.</p>
+            <fieldset>
+              <legend>Output mode</legend>
+              <div class="choice-grid">
+                <label class="choice active"><input type="radio" name="aiMode" value="map" checked><span><strong>Reusable mapping</strong><small>Recommended. Applies a reviewed source recipe.</small></span></label>
+                <label class="choice"><input type="radio" name="aiMode" value="record"><span><strong>AI per record</strong><small>Maximum flexibility with higher API usage.</small></span></label>
+                <label class="choice"><input type="radio" name="aiMode" value="none"><span><strong>Raw scrape</strong><small>Normalized source records without platform mapping.</small></span></label>
+              </div>
+            </fieldset>
+            <div class="switch-row">
+              <label class="switch"><input id="deep" type="checkbox" checked><span></span><b>Enrich detail pages</b><small>Captures descriptions, media and contacts</small></label>
+              <label class="switch"><input id="scope" type="checkbox"><span></span><b>Discover search areas</b><small>Expands into linked regional searches</small></label>
+            </div>
+            <details>
+              <summary>Advanced run limits</summary>
+              <div class="advanced-grid"><label>Maximum result pages<input id="max-pages" type="number" min="1" max="1000" value="50"></label><label>Maximum detail pages<input id="max-details" type="number" min="1" max="5000" value="100"></label></div>
+            </details>
+            <button id="submit-button" class="primary-button" type="submit"><span>Start scraper run</span><span>→</span></button>
+            <p id="form-error" class="error-message" role="alert"></p>
+          </form>
+
+          <aside class="content-card run-monitor">
+            <div class="card-header"><div><h3>Active run</h3><p>Live progress and output validation</p></div><span id="status-badge" class="status-badge idle">Idle</span></div>
+            <div id="empty-state" class="monitor-empty"><div class="monitor-symbol">↗</div><strong>No active run</strong><p>Start a scrape to see progress, coverage and downloads.</p></div>
+            <div id="job-state" class="job-state hidden" aria-live="polite">
+              <div class="run-progress-copy"><strong id="progress-copy">Preparing run…</strong><span id="progress-percent">0%</span></div>
+              <div class="progress"><span id="progress-bar"></span></div>
+              <p id="current-url" class="current-url"></p>
+              <div id="results" class="results"></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" data-view-panel="history">
+        <div class="section-heading"><div><h3>Run history</h3><p>Persistent job status, coverage and downloadable outputs.</p></div><button class="text-button" id="refresh-history">Refresh</button></div>
+        <section class="content-card table-card"><div id="history-list" class="history-list"><div class="inline-empty">Loading history…</div></div></section>
+      </section>
+
+      <section class="view" data-view-panel="sources">
+        <div class="section-heading"><div><h3>Source websites</h3><p>Coverage, run frequency and latest contact extraction by domain.</p></div><span id="source-count-chip" class="info-chip">0 sources</span></div>
+        <div id="sources-grid" class="sources-grid"><div class="inline-empty">Loading sources…</div></div>
+      </section>
+
+      <section class="view" data-view-panel="data">
+        <div class="section-heading"><div><h3>Saved property data</h3><p>Browse records persisted in MongoDB after scraping and mapping.</p></div><span id="record-count-chip" class="info-chip">0 records</span></div>
+        <section class="content-card table-card">
+          <form id="data-filters" class="data-filters">
+            <input id="property-search" type="search" placeholder="Search title, address, city or source">
+            <select id="property-kind"><option value="mapped">Platform mapped</option><option value="raw">Raw normalized</option></select>
+            <select id="property-source"><option value="">All sources</option></select>
+            <button class="secondary-button" type="submit">Apply filters</button>
+          </form>
+          <div class="table-scroll"><table class="data-table"><thead><tr><th>Property</th><th>Source</th><th>Price</th><th>Contact</th><th>Saved</th></tr></thead><tbody id="property-rows"><tr><td colspan="5">Loading saved data…</td></tr></tbody></table></div>
+          <div class="pagination"><button id="previous-page" class="text-button">← Previous</button><span id="page-copy">Page 1</span><button id="next-page" class="text-button">Next →</button></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
   <script src="/app.js" defer></script>
 </body>
 </html>

@@ -21,12 +21,49 @@ function safeEqual(actual, expected) {
   return actualBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(actualBuffer, expectedBuffer);
 }
 
+function parseCookies(req) {
+  return Object.fromEntries(String(req.headers.cookie || '').split(';').map((part) => {
+    const separator = part.indexOf('=');
+    if (separator < 0) return ['', ''];
+    return [part.slice(0, separator).trim(), decodeURIComponent(part.slice(separator + 1).trim())];
+  }).filter(([key]) => key));
+}
+
+function sessionSecret() {
+  return process.env.APP_SESSION_SECRET || process.env.APP_PASSWORD || 'local-property-vessel-session';
+}
+
+function createSessionToken(username) {
+  const payload = Buffer.from(JSON.stringify({ username, expiresAt: Date.now() + 12 * 60 * 60 * 1000 })).toString('base64url');
+  const signature = crypto.createHmac('sha256', sessionSecret()).update(payload).digest('base64url');
+  return `${payload}.${signature}`;
+}
+
+function verifySessionToken(token) {
+  const [payload, signature] = String(token || '').split('.');
+  if (!payload || !signature) return null;
+  const expected = crypto.createHmac('sha256', sessionSecret()).update(payload).digest('base64url');
+  if (!safeEqual(signature, expected)) return null;
+  try {
+    const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (!session.username || session.expiresAt <= Date.now()) return null;
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+function sessionFromRequest(req) {
+  return verifySessionToken(parseCookies(req).pv_session);
+}
+
 function requireAuthentication(req, res, next) {
   const username = process.env.APP_USERNAME;
   const password = process.env.APP_PASSWORD;
   if (!username && !password) return next();
   if (!username || !password) return res.status(503).json({ error: 'Application authentication is misconfigured.' });
   if (req.path === '/api/health') return next();
+  if (sessionFromRequest(req)?.username === username) return next();
 
   const [scheme, encoded] = String(req.headers.authorization || '').split(' ');
   if (scheme === 'Basic' && encoded) {
@@ -43,8 +80,47 @@ function requireAuthentication(req, res, next) {
   return res.status(401).send('Authentication required.');
 }
 
-app.use(requireAuthentication);
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.post('/api/auth/login', (req, res) => {
+  const configuredUsername = process.env.APP_USERNAME;
+  const configuredPassword = process.env.APP_PASSWORD;
+  if (!configuredUsername && !configuredPassword) {
+    return res.json({ authenticated: true, username: 'local' });
+  }
+  if (!configuredUsername || !configuredPassword) {
+    return res.status(503).json({ error: 'Application authentication is misconfigured.' });
+  }
+  if (!safeEqual(req.body.username, configuredUsername) || !safeEqual(req.body.password, configuredPassword)) {
+    return res.status(401).json({ error: 'Incorrect username or password.' });
+  }
+  const secure = req.secure || req.headers['x-forwarded-proto'] === 'https';
+  res.cookie('pv_session', createSessionToken(configuredUsername), {
+    httpOnly: true,
+    secure,
+    sameSite: 'lax',
+    maxAge: 12 * 60 * 60 * 1000,
+    path: '/',
+  });
+  return res.json({ authenticated: true, username: configuredUsername });
+});
+
+app.post('/api/auth/logout', (_req, res) => {
+  res.clearCookie('pv_session', { path: '/' });
+  res.json({ authenticated: false });
+});
+
+app.get('/api/auth/status', (req, res) => {
+  const configured = Boolean(process.env.APP_USERNAME || process.env.APP_PASSWORD);
+  const session = sessionFromRequest(req);
+  res.set('cache-control', 'no-store');
+  res.json({
+    authenticated: !configured || Boolean(session),
+    username: session?.username || (!configured ? 'local' : null),
+  });
+});
+
+app.use(requireAuthentication);
 
 function enabled(value) {
   return value === true || value === 'true';
@@ -252,6 +328,61 @@ app.get('/api/health', (_req, res) => {
     storage: mongo.connected ? 'mongodb' : 'local',
     uptimeSeconds: Math.round(process.uptime()),
   });
+});
+
+app.get('/api/dashboard', async (_req, res) => {
+  try {
+    if (mongo.configured) return res.json(await mongo.getDashboardData());
+    const recentJobs = [...jobs.values()].map(publicJob).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 8);
+    const sources = new Map();
+    for (const job of recentJobs) {
+      for (const result of job.results) {
+        const previous = sources.get(result.url) || { url: result.url, runs: 0, totalRecords: 0 };
+        previous.runs += 1;
+        previous.totalRecords += result.count || 0;
+        if (!previous.lastRunAt) Object.assign(previous, {
+          latestCount: result.count || 0,
+          latestStatus: result.status,
+          lastRunAt: job.createdAt,
+          contactCoverage: result.contactCoverage,
+        });
+        sources.set(result.url, previous);
+      }
+    }
+    return res.json({
+      stats: {
+        totalRuns: recentJobs.length,
+        completedRuns: recentJobs.filter((job) => job.status === 'completed').length,
+        failedRuns: recentJobs.filter((job) => job.status === 'failed').length,
+        savedRecords: recentJobs.reduce((sum, job) => sum + job.results.reduce((count, result) => count + (result.count || 0), 0), 0),
+        mappedRecords: 0,
+        recordsWithEmail: 0,
+        recordsWithPhone: 0,
+        sourceCount: sources.size,
+      },
+      recentJobs,
+      sources: [...sources.values()],
+    });
+  } catch (error) {
+    return res.status(503).json({ error: `Could not load dashboard data: ${error.message}` });
+  }
+});
+
+app.get('/api/properties', async (req, res) => {
+  try {
+    const page = positiveInteger(req.query.page, 1, 100000);
+    const limit = positiveInteger(req.query.limit, 25, 100);
+    const result = await mongo.listProperties({
+      page,
+      limit,
+      kind: req.query.kind || 'mapped',
+      sourceUrl: req.query.sourceUrl || undefined,
+      search: req.query.search || undefined,
+    });
+    return res.json(result);
+  } catch (error) {
+    return res.status(503).json({ error: `Could not load saved properties: ${error.message}` });
+  }
 });
 
 app.get('/api/jobs/:id', async (req, res) => {

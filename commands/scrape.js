@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const cheerio = require('cheerio');
-const { launchBrowser } = require('../lib/browser');
+const { launchBrowser, configureLightweightPage } = require('../lib/browser');
 const { HttpSession, delay, fetchWithRetries } = require('../lib/httpClient');
 const { findBestEmbeddedPropertyData } = require('../lib/embeddedData');
 const { isHomeflowPayload, paginateHomeflow } = require('../lib/homeflow');
@@ -33,6 +33,15 @@ const {
 const { NEXT_PAGE_SELECTORS, LOAD_MORE_SELECTORS } = require('../lib/constants');
 
 const MIN_PROPERTY_SCORE = 4;
+
+function accessChallengeError(response, html) {
+  const challengeHeader = response.headers.get('sg-captcha');
+  const challengePage = /\.well-known\/sgcaptcha|cf-chl-|captcha|verify you are human|checking your browser/i.test(String(html || '').slice(0, 20_000));
+  if (!challengeHeader && !challengePage) return null;
+  const error = new Error('The website returned an anti-bot CAPTCHA instead of its property listings. Try another source or use an approved proxy/browser session for this website.');
+  error.skipBrowserFallback = true;
+  return error;
+}
 
 function asPositiveInteger(value, fallback) {
   const parsed = Number.parseInt(value, 10);
@@ -124,7 +133,7 @@ async function captureJsonResponse(response) {
   if (!['xhr', 'fetch'].includes(request.resourceType()) || response.status() >= 400) return null;
 
   const length = Number(response.headers()['content-length'] || 0);
-  if (length > 12_000_000) return null;
+  if (length > 4_000_000) return null;
 
   const body = await response.text().catch(() => null);
   if (!body) return null;
@@ -138,7 +147,7 @@ async function captureJsonResponse(response) {
 
   const shape = recordsFromJson(json, true);
   if (shape.score < MIN_PROPERTY_SCORE || !shape.records.length) return null;
-  return { url: request.url(), json, ...shape };
+  return { url: request.url(), ...shape };
 }
 
 async function isVisibleAndEnabled(element) {
@@ -197,11 +206,13 @@ async function waitForNewCapture(captures, apiBatches, capturedCount, timeout = 
 async function scrapeWithBrowser({ url, maxPages }) {
   const browser = await launchBrowser();
   const page = await browser.newPage();
+  await configureLightweightPage(page);
   page.setDefaultNavigationTimeout(30_000);
 
   const apiBatches = [];
   const captures = new Set();
   page.on('response', (response) => {
+    if (captures.size >= 6) return;
     const capture = captureJsonResponse(response)
       .then((candidate) => { if (candidate) apiBatches.push(candidate); })
       .catch(() => {})
@@ -394,6 +405,8 @@ async function scrapeScope({ url, pageLimit, session }) {
     const response = await fetchWithRetries(session, url);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     initialHtml = await response.text();
+    const challengeError = accessChallengeError(response, initialHtml);
+    if (challengeError) throw challengeError;
 
     const candidate = findBestEmbeddedPropertyData(initialHtml);
     if (candidate && candidate.score >= MIN_PROPERTY_SCORE) {
@@ -443,6 +456,7 @@ async function scrapeScope({ url, pageLimit, session }) {
       };
     }
   } catch (error) {
+    if (error.skipBrowserFallback) throw error;
     console.warn(`HTTP inspection failed (${error.message}). Continuing with browser discovery.`);
   }
 
@@ -600,7 +614,7 @@ async function scrape({
 
       // Safe automatic escalation: only when the requested URL failed to
       // yield listings. A successful URL remains a single, precise query.
-      if (scopeDiscovery === undefined && !discovery && index === 0) {
+      if (scopeDiscovery === undefined && !discovery && index === 0 && !error.skipBrowserFallback) {
         try {
           console.log('\nNo listings from the requested route; discovering alternate search scopes...\n');
           discovery = await findScopes();

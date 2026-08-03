@@ -2,6 +2,7 @@ FROM node:20-bookworm-slim
 
 ENV NODE_ENV=production \
     PORT=3000 \
+    NODE_OPTIONS=--max-old-space-size=192 \
     PUPPETEER_SKIP_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     PUPPETEER_CONTAINER=true

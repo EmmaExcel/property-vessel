@@ -12,6 +12,7 @@ app.use(express.json({ limit: '1mb' }));
 const PORT = Number(process.env.PORT) || 3000;
 const MAX_URLS_PER_JOB = 10;
 const MAX_ACTIVE_JOBS = positiveInteger(process.env.MAX_ACTIVE_JOBS, 1, 3);
+const SOURCE_TIMEOUT_MS = positiveInteger(process.env.SOURCE_TIMEOUT_MS, 12 * 60 * 1000, 60 * 60 * 1000);
 const jobs = new Map();
 const mongo = new MongoStore();
 
@@ -154,6 +155,10 @@ function publicJob(job) {
     currentIndex: job.currentIndex,
     total: job.urls.length,
     currentUrl: job.currentUrl,
+    stage: job.stage,
+    stageMessage: job.stageMessage,
+    sourceProgress: job.sourceProgress,
+    updatedAt: job.updatedAt,
     error: job.error,
     results: job.results.map(({ files, ...result }) => result),
   };
@@ -194,6 +199,15 @@ function downloadUrl(jobId, resultIndex, kind) {
   return `/api/jobs/${jobId}/download/${resultIndex}/${kind}`;
 }
 
+function contactCoverageFor(records) {
+  const contacts = records.map((record) => record?.contact || record?._source?.contact || {});
+  return {
+    withAnyContact: contacts.filter((contact) => contact.emails?.length || contact.phones?.length).length,
+    withEmail: contacts.filter((contact) => contact.emails?.length).length,
+    withPhone: contacts.filter((contact) => contact.phones?.length).length,
+  };
+}
+
 async function runJob(job) {
   job.status = 'running';
   job.startedAt = new Date().toISOString();
@@ -206,12 +220,20 @@ async function runJob(job) {
       const url = job.urls[index];
       job.currentIndex = index;
       job.currentUrl = url;
+      job.stage = 'starting';
+      job.stageMessage = 'Starting source';
+      job.sourceProgress = 2;
+      job.updatedAt = new Date().toISOString();
+      await persistJob(job);
       const filename = path.basename(defaultOutFileName(url));
       const rawPath = path.join(runDir, filename);
       const mappedPath = path.join(runDir, 'ai-normalized', filename);
       const isAiRun = job.options.aiMap || job.options.aiNormalize;
 
-      const records = await scrape({
+      try {
+      const controller = new AbortController();
+      let lastProgressPersistedAt = 0;
+      const scrapePromise = scrape({
         url,
         outFile: rawPath,
         maxPages: job.options.maxPages,
@@ -228,7 +250,27 @@ async function runJob(job) {
         aiConcurrency: job.options.aiConcurrency,
         mappingsDir: path.resolve(__dirname, 'data', 'mappings'),
         forceRegenerate: job.options.forceRegenerate,
+        signal: controller.signal,
+        onProgress: (progress) => {
+          job.stage = progress.stage;
+          job.stageMessage = progress.message;
+          job.sourceProgress = progress.percent;
+          job.updatedAt = new Date().toISOString();
+          if (Date.now() - lastProgressPersistedAt > 5_000) {
+            lastProgressPersistedAt = Date.now();
+            persistJob(job);
+          }
+        },
       });
+      let timeoutHandle;
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutHandle = setTimeout(() => {
+          const error = new Error(`Source exceeded the ${Math.round(SOURCE_TIMEOUT_MS / 60_000)} minute safety limit.`);
+          controller.abort(error);
+          reject(error);
+        }, SOURCE_TIMEOUT_MS);
+      });
+      const records = await Promise.race([scrapePromise, timeoutPromise]).finally(() => clearTimeout(timeoutHandle));
 
       const finalPath = isAiRun ? mappedPath : rawPath;
       const reportPath = finalPath.replace(/\.json$/i, '.report.json');
@@ -248,11 +290,46 @@ async function runJob(job) {
         files: { rawPath, mappedPath: isAiRun ? mappedPath : null, reportPath },
       });
       await persistResult({ job, resultIndex, url, rawPath, records, isAiRun, report });
+      job.sourceProgress = 100;
+      job.stage = 'completed';
+      job.stageMessage = 'Source completed';
+      job.updatedAt = new Date().toISOString();
       await persistJob(job);
+      } catch (error) {
+        let rawRecords = [];
+        if (fs.existsSync(rawPath)) {
+          try { rawRecords = JSON.parse(fs.readFileSync(rawPath, 'utf8')); } catch { rawRecords = []; }
+        }
+        const resultIndex = job.results.length;
+        job.results.push({
+          url,
+          count: rawRecords.length,
+          status: 'failed',
+          error: error.message,
+          needsReview: rawRecords.length,
+          contactCoverage: contactCoverageFor(rawRecords),
+          downloads: {
+            raw: rawRecords.length ? downloadUrl(job.id, resultIndex, 'raw') : null,
+            mapped: null,
+            report: null,
+          },
+          files: { rawPath, mappedPath: null, reportPath: null },
+        });
+        if (rawRecords.length) {
+          await persistResult({ job, resultIndex, url, rawPath, records: rawRecords, isAiRun: false, report: null });
+        }
+        job.sourceProgress = 100;
+        job.stage = 'failed';
+        job.stageMessage = rawRecords.length ? `Source processing failed; ${rawRecords.length} raw records were preserved` : 'Source failed';
+        job.updatedAt = new Date().toISOString();
+        await persistJob(job);
+      }
     }
     job.currentIndex = job.urls.length;
     job.currentUrl = null;
-    job.status = 'completed';
+    const failedSources = job.results.filter((result) => result.status === 'failed').length;
+    job.status = failedSources ? 'partial' : 'completed';
+    job.error = failedSources ? `${failedSources} of ${job.urls.length} sources failed. Any successfully scraped raw records were preserved.` : null;
     job.completedAt = new Date().toISOString();
     await persistJob(job);
   } catch (error) {
@@ -281,6 +358,10 @@ app.post('/api/jobs', async (req, res) => {
       completedAt: null,
       currentIndex: 0,
       currentUrl: null,
+      stage: 'queued',
+      stageMessage: 'Waiting to start',
+      sourceProgress: 0,
+      updatedAt: new Date().toISOString(),
       error: null,
       results: [],
       options: {

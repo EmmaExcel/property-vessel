@@ -225,15 +225,17 @@ function renderResults(items) {
 function renderJob(job) {
   elements.emptyState.classList.add('hidden');
   elements.jobState.classList.remove('hidden');
-  const finished = ['completed', 'failed'].includes(job.status);
-  const progress = job.total ? Math.round(((job.currentIndex + (finished ? 0 : 0.25)) / job.total) * 100) : 0;
-  const percent = job.status === 'completed' ? 100 : Math.min(progress, 96);
+  const finished = ['completed', 'partial', 'failed'].includes(job.status);
+  const sourceFraction = Math.max(0, Math.min(100, Number(job.sourceProgress) || 0)) / 100;
+  const progress = job.total ? Math.round(((job.currentIndex + (finished ? 0 : sourceFraction)) / job.total) * 100) : 0;
+  const percent = ['completed', 'partial'].includes(job.status) ? 100 : Math.min(progress, 96);
   elements.statusBadge.textContent = job.status;
   elements.statusBadge.className = `status-badge ${job.status}`;
   elements.progressBar.style.width = `${percent}%`;
   elements.progressPercent.textContent = `${percent}%`;
-  elements.progressCopy.textContent = job.status === 'completed' ? `${job.results.length} source${job.results.length === 1 ? '' : 's'} completed` : job.status === 'failed' ? 'Run stopped' : `Source ${Math.min(job.currentIndex + 1, job.total)} of ${job.total}`;
-  elements.currentUrl.textContent = job.error || job.currentUrl || (job.status === 'completed' ? 'Outputs are saved and ready to download.' : 'Preparing the first source…');
+  elements.progressCopy.textContent = job.status === 'completed' ? `${job.results.length} source${job.results.length === 1 ? '' : 's'} completed` : job.status === 'partial' ? 'Run completed with some source errors' : job.status === 'failed' ? 'Run stopped' : `${job.stageMessage || 'Working'} · Source ${Math.min(job.currentIndex + 1, job.total)} of ${job.total}`;
+  const elapsedMinutes = job.startedAt ? Math.max(1, Math.floor((Date.now() - new Date(job.startedAt).getTime()) / 60_000)) : 0;
+  elements.currentUrl.textContent = job.error || (job.currentUrl ? `${job.currentUrl}${!finished ? ` · ${elapsedMinutes} min elapsed` : ''}` : (job.status === 'completed' ? 'Outputs are saved and ready to download.' : 'Preparing the first source…'));
   renderResults(job.results || []);
   elements.submitButton.disabled = !finished;
   elements.submitButton.querySelector('span').textContent = finished ? 'Start another run' : 'Scrape in progress…';
@@ -244,7 +246,7 @@ async function pollJob(id) {
   try {
     const job = await api(`/api/jobs/${encodeURIComponent(id)}`);
     renderJob(job);
-    if (!['completed', 'failed'].includes(job.status)) {
+    if (!['completed', 'partial', 'failed'].includes(job.status)) {
       pollTimer = setTimeout(() => pollJob(id), 1500);
     } else {
       await Promise.all([loadDashboard(), loadStorage()]);

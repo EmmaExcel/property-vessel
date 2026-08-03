@@ -315,7 +315,7 @@ function mergeMissingFields(record, detail) {
   }
 }
 
-async function enrichWithDetailPages({ records, sourceUrl, session, maxPages }) {
+async function enrichWithDetailPages({ records, sourceUrl, session, maxPages, onProgress }) {
   const candidates = records
     .map((record) => ({
       record,
@@ -334,6 +334,7 @@ async function enrichWithDetailPages({ records, sourceUrl, session, maxPages }) 
     .sort((a, b) => b.needScore - a.needScore)
     .slice(0, maxPages);
   let enriched = 0;
+  let completed = 0;
 
   // A small worker pool limits pressure on agent sites while still avoiding a
   // painfully slow one-request-at-a-time crawl.
@@ -352,6 +353,8 @@ async function enrichWithDetailPages({ records, sourceUrl, session, maxPages }) 
       } catch {
         // Detail enrichment is supplemental. The search-card record remains valid.
       }
+      completed += 1;
+      if (onProgress) onProgress({ completed, total: candidates.length });
       await delay(120);
     }
   }
@@ -510,6 +513,8 @@ async function scrape({
   platformOnly,
   mappingsDir,
   forceRegenerate,
+  signal,
+  onProgress,
   skipWrite = false,
 }) {
   if (!url) throw new Error('--url is required');
@@ -520,7 +525,10 @@ async function scrape({
   const startedAt = new Date().toISOString();
   const pageLimit = asPositiveInteger(maxPages, 500);
   const scopeLimit = asPositiveInteger(maxScopes, 50);
-  const session = new HttpSession();
+  const session = new HttpSession({}, signal);
+  const reportProgress = (stage, message, percent) => {
+    if (typeof onProgress === 'function') onProgress({ stage, message, percent });
+  };
   let scopes = [url];
   let discovery = null;
 
@@ -555,13 +563,25 @@ async function scrape({
     const scopeUrl = scopes[index];
     console.log(`\n=== Scraping scope ${index + 1}/${scopes.length}: ${scopeUrl} ===\n`);
     try {
+      if (signal?.aborted) throw signal.reason;
+      reportProgress('scraping', `Collecting listings from ${new URL(scopeUrl).hostname}`, 10);
       const result = await scrapeScope({ url: scopeUrl, pageLimit, session });
+      reportProgress('scraping', `Found ${result.records.length} listing records`, 30);
       let enrichment = null;
       if (deep === true || deep === 'true') {
         const limit = asPositiveInteger(maxDetailPages, 100);
-        enrichment = await enrichWithDetailPages({ records: result.records, sourceUrl: scopeUrl, session, maxPages: limit });
+        const detailTotal = Math.min(result.records.length, limit);
+        reportProgress('enriching', `Enriching ${detailTotal} property detail pages`, 32);
+        enrichment = await enrichWithDetailPages({
+          records: result.records,
+          sourceUrl: scopeUrl,
+          session,
+          maxPages: limit,
+          onProgress: ({ completed, total }) => reportProgress('enriching', `Enriching property details (${completed}/${total})`, 32 + Math.round((completed / Math.max(total, 1)) * 48)),
+        });
         console.log(`Detail enrichment: ${enrichment.enriched}/${enrichment.attempted} page(s) supplied extra fields.`);
       }
+      reportProgress('processing', 'Cleaning and deduplicating records', 82);
       normalized.push(...result.records.map((record) => result.normalizer(record, scopeUrl)));
       scopeReports.push({
         url: scopeUrl,
@@ -632,11 +652,13 @@ async function scrape({
     if (!process.env.OPENROUTER_API_KEY && !process.env.GEMINI_API_KEY) {
       throw new Error('No AI API key is set. Add OPENROUTER_API_KEY or GEMINI_API_KEY before using --ai-map.');
     }
+    reportProgress('mapping', `Mapping ${listings.length} records to the platform schema`, 88);
     console.log(`\n=== AI-map: generating recipe for ${listings.length} listing(s) ===\n`);
     const recipe = await loadOrGenerateRecipe(url, listings, {
       model: aiModel,
       mappingsDir,
       forceRegenerate: enabled(forceRegenerate),
+      signal,
     });
     const result = applyRecipeBatch(listings, recipe, url);
     listings = result.records;
@@ -658,7 +680,9 @@ async function scrape({
     const result = await normalizeListingsWithAi(listings, {
       model: aiModel,
       concurrency: asPositiveInteger(aiConcurrency, 1),
+      signal,
       onProgress: ({ completed, total, normalized: completedSuccessfully, failed }) => {
+        reportProgress('mapping', `Mapping records (${completed}/${total})`, 84 + Math.round((completed / Math.max(total, 1)) * 14));
         console.log(`  AI ${completed}/${total}: ${completedSuccessfully} normalized, ${failed} needs review`);
       },
     });
@@ -691,6 +715,7 @@ async function scrape({
   if (!scopeReports.some((scope) => scope.status === 'complete')) {
     throw new Error('No scope could be scraped successfully; see the run report for failure details.');
   }
+  reportProgress('saving', 'Saving completed records', 100);
   return outputRecords;
 }
 

@@ -124,6 +124,7 @@ summary { cursor: pointer; color: var(--muted); font-size: 11px; font-weight: 60
 .run-monitor { min-height: 430px; }
 .status-badge { padding: 4px 7px; border-radius: 4px; color: #205f46; background: #e6f1eb; font-size: 10px; font-weight: 600; text-transform: capitalize; }
 .status-badge.failed { color: #8f3129; background: #fbe9e7; }
+.status-badge.partial { color: #725813; background: #f6efd8; }
 .status-badge.idle { color: var(--muted); background: var(--soft); }
 .monitor-empty { min-height: 325px; display: grid; place-content: center; justify-items: center; text-align: center; }
 .monitor-symbol { display: none; }
@@ -154,6 +155,7 @@ summary { cursor: pointer; color: var(--muted); font-size: 11px; font-weight: 60
 .history-contact span + span { margin-top: 2px; color: var(--muted); }
 .status-label { display: inline-block; padding: 3px 7px; border-radius: 3px; color: #725813; background: #f6efd8; font-size: 10px; text-transform: capitalize; }
 .status-label.completed { color: #1d6745; background: #e5f1ea; }
+.status-label.partial { color: #725813; background: #f6efd8; }
 .status-label.failed { color: #91332b; background: #f9e7e5; }
 .history-error { display: block; max-width: 180px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--danger); font-size: 9px; }
 .history-actions { display: flex; gap: 8px; justify-content: flex-end; }

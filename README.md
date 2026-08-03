@@ -15,8 +15,10 @@ persistent history, per-source contact coverage, and a searchable MongoDB data
 library. Scrapes support detail enrichment, optional search-area discovery,
 reusable AI mapping, per-record AI mapping, raw-only output, review counts, and
 downloads for raw JSON, platform JSON, and the audit report. Each browser run
-is stored in its own folder under `data/runs/`, so one run does not overwrite
-another.
+uses its own temporary folder under `data/runs/`, so one run does not overwrite
+another. When MongoDB is configured, the temporary folder and in-memory job are
+removed only after the raw records, mapped records, report, and final job state
+have been confirmed in MongoDB. Downloads then stream from MongoDB.
 
 ### Persistent MongoDB storage (free Atlas tier)
 

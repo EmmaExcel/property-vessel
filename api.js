@@ -173,16 +173,18 @@ function storedJob(job) {
 }
 
 async function persistJob(job) {
-  if (!mongo.configured) return;
+  if (!mongo.configured) return false;
   try {
     await mongo.saveJob(storedJob(job));
+    return true;
   } catch (error) {
     console.warn(`MongoDB job persistence failed: ${error.message}`);
+    return false;
   }
 }
 
 async function persistResult({ job, resultIndex, url, rawPath, records, isAiRun, report }) {
-  if (!mongo.configured) return;
+  if (!mongo.configured) return false;
   try {
     const rawRecords = fs.existsSync(rawPath) ? JSON.parse(fs.readFileSync(rawPath, 'utf8')) : records;
     await mongo.saveRecords({ jobId: job.id, resultIndex, sourceUrl: url, kind: 'raw', records: rawRecords });
@@ -190,8 +192,10 @@ async function persistResult({ job, resultIndex, url, rawPath, records, isAiRun,
       await mongo.saveRecords({ jobId: job.id, resultIndex, sourceUrl: url, kind: 'mapped', records });
     }
     await mongo.saveReport({ jobId: job.id, resultIndex, sourceUrl: url, report });
+    return true;
   } catch (error) {
     console.warn(`MongoDB listing persistence failed: ${error.message}`);
+    return false;
   }
 }
 
@@ -214,6 +218,7 @@ async function runJob(job) {
   await persistJob(job);
   const runDir = path.resolve(__dirname, 'data', 'runs', job.id);
   fs.mkdirSync(runDir, { recursive: true });
+  let allResultsPersisted = mongo.configured;
 
   try {
     for (let index = 0; index < job.urls.length; index += 1) {
@@ -289,7 +294,8 @@ async function runJob(job) {
         },
         files: { rawPath, mappedPath: isAiRun ? mappedPath : null, reportPath },
       });
-      await persistResult({ job, resultIndex, url, rawPath, records, isAiRun, report });
+      const resultPersisted = await persistResult({ job, resultIndex, url, rawPath, records, isAiRun, report });
+      allResultsPersisted = allResultsPersisted && resultPersisted;
       job.sourceProgress = 100;
       job.stage = 'completed';
       job.stageMessage = 'Source completed';
@@ -316,7 +322,8 @@ async function runJob(job) {
           files: { rawPath, mappedPath: null, reportPath: null },
         });
         if (rawRecords.length) {
-          await persistResult({ job, resultIndex, url, rawPath, records: rawRecords, isAiRun: false, report: null });
+          const rawPersisted = await persistResult({ job, resultIndex, url, rawPath, records: rawRecords, isAiRun: false, report: null });
+          allResultsPersisted = allResultsPersisted && rawPersisted;
         }
         job.sourceProgress = 100;
         job.stage = 'failed';
@@ -331,7 +338,15 @@ async function runJob(job) {
     job.status = failedSources ? 'partial' : 'completed';
     job.error = failedSources ? `${failedSources} of ${job.urls.length} sources failed. Any successfully scraped raw records were preserved.` : null;
     job.completedAt = new Date().toISOString();
-    await persistJob(job);
+    const finalJobPersisted = await persistJob(job);
+    if (allResultsPersisted && finalJobPersisted) {
+      try {
+        fs.rmSync(runDir, { recursive: true, force: true });
+      } catch (error) {
+        console.warn(`Temporary run cleanup failed: ${error.message}`);
+      }
+      jobs.delete(job.id);
+    }
   } catch (error) {
     job.status = 'failed';
     job.error = error.message;

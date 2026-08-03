@@ -136,8 +136,8 @@ function switchView(view) {
   if (selected === 'data') loadProperties();
 }
 
-function metricCard(label, value, note, icon) {
-  return `<article class="metric-card"><div class="metric-top"><span>${escapeHtml(label)}</span><span class="metric-icon">${escapeHtml(icon)}</span></div><strong class="metric-value">${formatNumber(value)}</strong><span class="metric-note">${escapeHtml(note)}</span></article>`;
+function metricCard(label, value, note) {
+  return `<article class="metric-card"><div class="metric-top"><span>${escapeHtml(label)}</span></div><strong class="metric-value">${formatNumber(value)}</strong><span class="metric-note">${escapeHtml(note)}</span></article>`;
 }
 
 function renderRecentRuns(jobs) {
@@ -148,7 +148,7 @@ function renderRecentRuns(jobs) {
   elements.recentRuns.innerHTML = jobs.slice(0, 6).map((job) => {
     const firstUrl = job.results?.[0]?.url || job.currentUrl || 'Run preparing';
     const count = totalRecords(job);
-    return `<article class="activity-row"><span class="activity-symbol">${escapeHtml(hostname(firstUrl).slice(0, 2).toUpperCase())}</span><div class="activity-main"><strong title="${escapeHtml(firstUrl)}">${escapeHtml(hostname(firstUrl))}</strong><small>${escapeHtml(formatDate(job.createdAt))} · <span class="status-dot ${escapeHtml(job.status)}">${escapeHtml(job.status)}</span></small></div><strong class="row-count">${formatNumber(count)}</strong></article>`;
+    return `<article class="activity-row"><div class="activity-main"><strong title="${escapeHtml(firstUrl)}">${escapeHtml(hostname(firstUrl))}</strong><small>${escapeHtml(formatDate(job.createdAt))} · <span class="status-dot ${escapeHtml(job.status)}">${escapeHtml(job.status)}</span></small></div><strong class="row-count">${formatNumber(count)}</strong></article>`;
   }).join('');
 }
 
@@ -170,7 +170,7 @@ function renderSources(sources) {
     const domain = hostname(source.url);
     const email = source.contactCoverage?.withEmail || 0;
     const phone = source.contactCoverage?.withPhone || 0;
-    return `<article class="source-card"><div class="source-card-top"><span class="source-favicon">${escapeHtml(domain.slice(0, 1))}</span><span class="status-dot ${escapeHtml(source.latestStatus)}">${escapeHtml(source.latestStatus || 'unknown')}</span></div><h4 title="${escapeHtml(domain)}">${escapeHtml(domain)}</h4><span class="source-url" title="${escapeHtml(source.url)}">${escapeHtml(source.url)}</span><div class="source-metrics"><div><strong>${formatNumber(source.latestCount)}</strong><small>Latest</small></div><div><strong>${formatNumber(email)}</strong><small>Emails</small></div><div><strong>${formatNumber(phone)}</strong><small>Phones</small></div></div><div class="source-last">${formatNumber(source.runs)} total runs · Last ${escapeHtml(formatDate(source.lastRunAt))}</div></article>`;
+    return `<article class="source-card"><div class="source-card-top"><h4 title="${escapeHtml(domain)}">${escapeHtml(domain)}</h4><span class="status-dot ${escapeHtml(source.latestStatus)}">${escapeHtml(source.latestStatus || 'unknown')}</span></div><span class="source-url" title="${escapeHtml(source.url)}">${escapeHtml(source.url)}</span><div class="source-metrics"><div><strong>${formatNumber(source.latestCount)}</strong><small>Latest</small></div><div><strong>${formatNumber(email)}</strong><small>Emails</small></div><div><strong>${formatNumber(phone)}</strong><small>Phones</small></div></div><div class="source-last">${formatNumber(source.runs)} total runs · Last ${escapeHtml(formatDate(source.lastRunAt))}</div></article>`;
   }).join('');
 }
 
@@ -186,10 +186,10 @@ async function loadDashboard() {
     dashboardData = data;
     const stats = data.stats || {};
     elements.metricGrid.innerHTML = [
-      metricCard('Raw records', stats.savedRecords, `${formatNumber(stats.sourceCount)} source websites`, '↗'),
-      metricCard('Platform mapped', stats.mappedRecords, 'Schema-ready records', '✓'),
-      metricCard('Emails preserved', stats.recordsWithEmail, 'Raw records with email', '@'),
-      metricCard('Phones preserved', stats.recordsWithPhone, `${formatNumber(stats.completedRuns)} completed runs`, '☎'),
+      metricCard('Raw records', stats.savedRecords, `${formatNumber(stats.sourceCount)} source websites`),
+      metricCard('Platform mapped', stats.mappedRecords, 'Schema-ready records'),
+      metricCard('Emails preserved', stats.recordsWithEmail, 'Raw records with email'),
+      metricCard('Phones preserved', stats.recordsWithPhone, `${formatNumber(stats.completedRuns)} completed runs`),
     ].join('');
     renderRecentRuns(data.recentJobs || []);
     renderSourceSummary(data.sources || []);

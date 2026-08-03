@@ -10,33 +10,31 @@
 <body>
   <section id="login-screen" class="login-screen">
     <div class="login-card">
-      <div class="login-brand"><span class="brand-mark">PV</span><span><strong>Property Vessel</strong><small>Data operations</small></span></div>
+      <div class="login-brand"><strong>Property Vessel</strong></div>
       <div class="login-copy">
-        <span class="secure-label">Private workspace</span>
-        <h1>Sign in to continue</h1>
-        <p>Access scraper runs, source coverage and saved platform data.</p>
+        <h1>Sign in</h1>
+        <p>Enter your account details to continue.</p>
       </div>
       <form id="login-form" class="login-form">
         <label for="login-username">Username</label>
         <input id="login-username" name="username" autocomplete="username" required>
         <label for="login-password">Password</label>
         <input id="login-password" name="password" type="password" autocomplete="current-password" required>
-        <button type="submit" class="primary-button"><span>Sign in</span><span>→</span></button>
+        <button type="submit" class="primary-button"><span>Sign in</span></button>
         <p id="login-error" class="error-message" role="alert"></p>
       </form>
-      <p class="login-foot">Credentials are verified by the server and never stored in the browser.</p>
     </div>
   </section>
 
   <div id="app-shell" class="app-shell hidden">
     <aside class="sidebar">
-      <div class="sidebar-brand"><span class="brand-mark">PV</span><span><strong>Property Vessel</strong><small>Operations console</small></span></div>
+      <div class="sidebar-brand"><strong>Property Vessel</strong></div>
       <nav class="nav-list" aria-label="Main navigation">
-        <button class="nav-item active" data-view="overview"><span class="nav-icon">01</span><span>Overview</span></button>
-        <button class="nav-item" data-view="scrape"><span class="nav-icon">02</span><span>New scrape</span></button>
-        <button class="nav-item" data-view="history"><span class="nav-icon">03</span><span>Run history</span></button>
-        <button class="nav-item" data-view="sources"><span class="nav-icon">04</span><span>Sources</span></button>
-        <button class="nav-item" data-view="data"><span class="nav-icon">05</span><span>Data library</span></button>
+        <button class="nav-item active" data-view="overview">Overview</button>
+        <button class="nav-item" data-view="scrape">New scrape</button>
+        <button class="nav-item" data-view="history">Run history</button>
+        <button class="nav-item" data-view="sources">Sources</button>
+        <button class="nav-item" data-view="data">Data library</button>
       </nav>
       <div class="sidebar-bottom">
         <div class="storage-state"><span id="storage-dot"></span><div><strong id="storage-label">Checking storage</strong><small id="storage-copy">Connecting…</small></div></div>
@@ -47,7 +45,7 @@
     <main class="main-area">
       <header class="app-header">
         <div><span id="page-kicker">Operations</span><h2 id="page-title">Overview</h2></div>
-        <div class="header-actions"><span id="user-pill" class="user-pill">admin</span><button class="header-run" data-view-target="scrape">＋ New scrape</button></div>
+        <div class="header-actions"><span id="user-pill" class="user-pill">admin</span><button class="header-run" data-view-target="scrape">New scrape</button></div>
       </header>
 
       <div id="global-error" class="global-error hidden" role="alert"></div>
@@ -92,7 +90,7 @@
               <summary>Advanced run limits</summary>
               <div class="advanced-grid"><label>Maximum result pages<input id="max-pages" type="number" min="1" max="1000" value="50"></label><label>Maximum detail pages<input id="max-details" type="number" min="1" max="5000" value="100"></label></div>
             </details>
-            <button id="submit-button" class="primary-button" type="submit"><span>Start scraper run</span><span>→</span></button>
+            <button id="submit-button" class="primary-button" type="submit"><span>Start scraper run</span></button>
             <p id="form-error" class="error-message" role="alert"></p>
           </form>
 

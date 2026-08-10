@@ -1,6 +1,6 @@
 {
   "fieldMap": {
-    "title": { "path": "raw.address" },
+    "title": { "path": "raw.title" },
     "purpose": { "value": "sale" },
     "location": { "path": "raw.address" },
     "price": { "path": "raw.price", "transform": "toNumber" },
@@ -9,7 +9,7 @@
     "landmark": null,
     "radius": null,
     "city": { "path": "raw.city" },
-    "typeOfProperty": { "path": "raw.title", "transform": "propertyTypeFromText" },
+    "typeOfProperty": { "path": "raw.description", "transform": "propertyTypeFromText" },
     "bedrooms": { "path": "raw.bedrooms", "transform": "toNumber" },
     "bathrooms": { "path": "raw.bathrooms", "transform": "toNumber" },
     "toilets": null,
@@ -26,13 +26,13 @@
     "floorPlan": null,
     "PCM": null,
     "PCW": null,
-    "subType": { "path": "raw.title", "transform": "propertyTypeFromText" }
+    "subType": { "path": "raw.description", "transform": "propertyTypeFromText" }
   },
   "confidence": 0.96,
   "unmappedFields": ["latitude", "longitude", "postcode", "country"],
   "notes": [
-    "Reviewed against current Abacus detail records; title is the clean address and type is parsed from the explicit listing headline.",
-    "Responsive gallery variants are canonicalized and non-property badges are removed during schema sanitization."
+    "Reviewed against the complete Blenheim detail-page records and galleries.",
+    "Property type is conservatively derived only when the source description explicitly names a supported type."
   ],
   "_model": "deterministic-reviewed",
   "_generatedAt": "2026-08-10T19:00:00.000Z",

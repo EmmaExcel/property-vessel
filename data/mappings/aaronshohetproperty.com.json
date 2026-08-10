@@ -7,17 +7,7 @@
       "value": "sale"
     },
     "location": {
-      "path": "raw.display_address"
-    },
-    "price": {
-      "path": "raw.price"
-    },
-    "images": {
-      "path": "raw.images",
-      "transform": "extractUrls"
-    },
-    "address": {
-      "path": "raw.address",
+      "path": "raw",
       "transform": "joinAddress",
       "args": {
         "keys": [
@@ -29,12 +19,22 @@
         "separator": ", "
       }
     },
+    "price": {
+      "path": "raw.price"
+    },
+    "images": {
+      "path": "raw.images",
+      "transform": "extractUrls"
+    },
+    "address": {
+      "path": "raw.display_address"
+    },
+    "landmark": null,
+    "radius": null,
     "city": {
-      "path": "raw.address.address3"
+      "path": "raw.area"
     },
-    "typeOfProperty": {
-      "path": "raw.building[0]"
-    },
+    "typeOfProperty": { "path": "raw.title", "transform": "propertyTypeFromText" },
     "bedrooms": {
       "path": "raw.bedroom"
     },
@@ -42,7 +42,9 @@
       "path": "raw.bathroom"
     },
     "toilets": null,
-    "livingRoom": null,
+    "livingRoom": {
+      "path": "raw.reception"
+    },
     "size": {
       "path": "raw.floorarea_min",
       "transform": "appendUnit",
@@ -51,57 +53,25 @@
       }
     },
     "tenureOfProperty": null,
-    "description": {
-      "path": "raw.description",
-      "transform": "stripHtml"
-    },
+    "description": { "path": "raw.long_description", "transform": "stripHtml" },
     "amount": null,
     "minimum_offer": null,
-    "currency": null,
+    "currency": { "value": "GBP" },
     "add_features": null,
     "video_link": null,
     "virtual_tour_link": null,
-    "floorPlan": null,
+    "floorPlan": { "path": "raw.floorplan", "transform": "extractUrls" },
     "PCM": null,
     "PCW": null,
-    "subType": null,
-    "landmark": null,
-    "radius": null
+    "subType": { "path": "raw.title", "transform": "propertyTypeFromText" }
   },
-  "confidence": 0.9,
-  "unmappedFields": [
-    "landmark",
-    "radius",
-    "toilets",
-    "livingRoom",
-    "tenureOfProperty",
-    "amount",
-    "minimum_offer",
-    "currency",
-    "add_features",
-    "video_link",
-    "virtual_tour_link",
-    "virtual_tour",
-    "floorPlan",
-    "PCM",
-    "PCW",
-    "subType"
-  ],
+  "confidence": 0.98,
+  "unmappedFields": [],
   "notes": [
-    "Used raw.title for title.",
-    "Mapped purpose from search_type 'sales' to 'sale'.",
-    "Location taken from display_address.",
-    "Address combined via joinAddress using building_number, address1, address3, postcode.",
-    "City extracted from address3 (London).",
-    "Property type derived from building field (link-detached-house, apartment, flat).",
-    "Bedrooms and bathrooms taken directly from raw.bedroom and raw.bathroom.",
-    "Size derived from floorarea_min with appendUnit to add 'sqft'.",
-    "Description stripped of HTML tags.",
-    "Fields with no corresponding data set to null.",
-    "All source fields used in mapping are present in the sample records.",
-    "Unknown platform field \"virtual_tour\" — ignored."
+    "Mapped title, purpose, location via joinAddress, price, images via extractUrls, address via display_address, city via area, typeOfProperty via propertyType, bedrooms, bathrooms, livingRoom via reception, size via appendUnit, description via description"
   ],
-  "_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-  "_generatedAt": "2026-08-03T13:24:45.587Z",
-  "_sampleCount": 3
+  "_model": "deterministic-reviewed",
+  "_generatedAt": "2026-08-10T18:24:38.082Z",
+  "_sampleCount": 8,
+  "_recipeVersion": 2
 }

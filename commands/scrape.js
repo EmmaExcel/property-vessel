@@ -320,6 +320,24 @@ function firstDetailRecord(html, pageUrl) {
   return record;
 }
 
+function gatsbyPageDataUrl(html, pageUrl) {
+  if (!/gatsby/i.test(String(html || ''))) return null;
+  try {
+    const url = new URL(pageUrl);
+    const pathname = url.pathname.endsWith('/') ? url.pathname : `${url.pathname}/`;
+    return new URL(`/page-data${pathname}page-data.json`, url.origin).toString();
+  } catch {
+    return null;
+  }
+}
+
+function propertyRecordFromPageData(json) {
+  const preferred = json?.result?.data?.strapiProperty || json?.result?.data?.property;
+  if (preferred && typeof preferred === 'object') return preferred;
+  const shape = recordsFromJson(json, true);
+  return shape.score >= MIN_PROPERTY_SCORE ? shape.records[0] : null;
+}
+
 function mergeMissingFields(record, detail) {
   for (const [key, value] of Object.entries(detail)) {
     record[key] = mergeRecordValues(record[key], value, key);
@@ -357,8 +375,21 @@ async function enrichWithDetailPages({ records, sourceUrl, session, maxPages, on
       try {
         const response = await fetchWithRetries(session, current.url, { headers: { referer: sourceUrl } });
         if (!response.ok) continue;
-        const detail = firstDetailRecord(await response.text(), current.url);
-        if (!detail) continue;
+        const html = await response.text();
+        const detail = firstDetailRecord(html, current.url) || {};
+        const pageDataUrl = gatsbyPageDataUrl(html, current.url);
+        if (pageDataUrl) {
+          try {
+            const pageDataResponse = await fetchWithRetries(session, pageDataUrl, { headers: { referer: current.url } });
+            if (pageDataResponse.ok) {
+              const pageDataRecord = propertyRecordFromPageData(await pageDataResponse.json());
+              if (pageDataRecord) mergeMissingFields(detail, pageDataRecord);
+            }
+          } catch {
+            // Gatsby page-data is an optional richer source; keep HTML details.
+          }
+        }
+        if (!Object.keys(detail).length) continue;
         mergeMissingFields(current.record, detail);
         enriched += 1;
       } catch {
@@ -667,6 +698,7 @@ async function scrape({
   let aiNormalization = null;
 
   if (enabled(aiMap)) {
+    if (!listings.length) throw new Error('No usable property listings were available for AI mapping.');
     if (!process.env.OPENROUTER_API_KEY && !process.env.GEMINI_API_KEY) {
       throw new Error('No AI API key is set. Add OPENROUTER_API_KEY or GEMINI_API_KEY before using --ai-map.');
     }
@@ -688,6 +720,7 @@ async function scrape({
       failed: result.failed,
     };
   } else if (enabled(aiNormalize)) {
+    if (!listings.length) throw new Error('No usable property listings were available for AI normalization.');
     if (!process.env.OPENROUTER_API_KEY && !process.env.GEMINI_API_KEY) {
       throw new Error('No AI API key is set. Add OPENROUTER_API_KEY or GEMINI_API_KEY before using --ai-normalize.');
     }

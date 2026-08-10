@@ -17,6 +17,7 @@
     "discover": "node scraper.js discover",
     "extract": "node scraper.js extract",
     "normalize-existing": "node scraper.js normalize-existing",
+    "export:porting": "node scripts/buildPortingExport.js",
     "test": "node test/scraper.test.js"
   },
   "dependencies": {

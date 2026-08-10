@@ -1,72 +1,41 @@
 {
   "fieldMap": {
-    "title": {
-      "path": "title"
-    },
-    "purpose": {
-      "transform": "purposeMap",
-      "args": {
-        "Available": "sale"
-      }
-    },
-    "location": {
-      "path": "raw.display_address"
-    },
-    "price": {
-      "path": "raw.price",
-      "transform": "toNumber"
-    },
-    "images": null,
-    "address": {
-      "path": "address"
-    },
+    "title": { "path": "raw.display_address" },
+    "purpose": { "value": "sale" },
+    "location": { "path": "raw.display_address" },
+    "price": { "path": "raw.price", "transform": "toNumber" },
+    "images": { "path": "raw.images" },
+    "address": { "path": "raw.display_address" },
     "landmark": null,
     "radius": null,
     "city": null,
-    "typeOfProperty": null,
-    "bedrooms": {
-      "path": "raw.bedrooms",
-      "transform": "toNumber"
-    },
-    "bathrooms": {
-      "path": "raw.bathrooms",
-      "transform": "toNumber"
-    },
+    "typeOfProperty": { "path": "raw.propertyType" },
+    "bedrooms": { "path": "raw.bedrooms", "transform": "toNumber" },
+    "bathrooms": { "path": "raw.bathrooms", "transform": "toNumber" },
     "toilets": null,
-    "livingRoom": null,
+    "livingRoom": { "path": "raw.receptions", "transform": "toNumber" },
     "size": null,
     "tenureOfProperty": null,
-    "description": null,
-    "amount": null,
+    "description": { "path": "raw.description", "transform": "stripHtml" },
+    "amount": { "path": "raw.price", "transform": "toNumber" },
     "minimum_offer": null,
-    "currency": null,
+    "currency": { "value": "GBP" },
     "add_features": null,
-    "video_link": null,
-    "virtual_tour_link": null,
+    "video_link": { "path": "raw.vtour" },
+    "virtual_tour_link": { "path": "raw.vtour" },
     "floorPlan": null,
     "PCM": null,
     "PCW": null,
-    "subType": null
+    "subType": { "path": "raw.propertyType" }
   },
-  "confidence": 0.85,
-  "unmappedFields": [
-    "raw.receptions",
-    "raw.href",
-    "raw.marketing_tag",
-    "raw.vtour",
-    "sourceSiteUrl",
-    "sourceUrl"
-  ],
+  "confidence": 0.98,
+  "unmappedFields": ["marketing_tag", "status"],
   "notes": [
-    "Title mapped directly from the root title field.",
-    "Purpose derived from status using purposeMap (Available -> sale).",
-    "Location and address both use raw.display_address.",
-    "Price converted to a number with toNumber transform.",
-    "Bedrooms and bathrooms converted to numbers via toNumber.",
-    "Fields with no corresponding source data are set to null.",
-    "Source fields receptions, href, marketing_tag, vtour, sourceSiteUrl, and sourceUrl are not used for any platform field."
+    "Reviewed against the preserved 247 Property Services detail records.",
+    "All public contacts and untouched source fields remain available in _source."
   ],
-  "_model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
-  "_generatedAt": "2026-08-03T14:28:50.003Z",
-  "_sampleCount": 3
+  "_model": "deterministic-reviewed",
+  "_generatedAt": "2026-08-10T19:00:00.000Z",
+  "_sampleCount": 8,
+  "_recipeVersion": 2
 }

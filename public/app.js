@@ -239,8 +239,14 @@ async function loadStorage() {
 function renderResults(items) {
   elements.results.innerHTML = items.map((item) => {
     const contacts = item.contactCoverage ? `${item.contactCoverage.withEmail || 0} email · ${item.contactCoverage.withPhone || 0} phone` : 'Contact audit unavailable';
+    const readiness = item.blockedFromImport === null || item.blockedFromImport === undefined
+      ? `${formatNumber(item.needsReview)} review`
+      : `${formatNumber(item.importReady)} ready · ${formatNumber(item.blockedFromImport)} blocked`;
+    const media = item.imageCoverage
+      ? `${formatNumber(item.imageCoverage.totalImages)} images · ${item.imageCoverage.averagePerListing || 0} avg`
+      : null;
     const links = Object.entries(item.downloads || {}).filter(([, url]) => url).map(([kind, url]) => `<a href="${escapeHtml(url)}">${kind === 'mapped' ? 'Platform JSON' : kind === 'raw' ? 'Raw JSON' : 'Run report'}</a>`).join('');
-    return `<article class="result-card"><div class="result-top"><h4 title="${escapeHtml(item.url)}">${escapeHtml(hostname(item.url))}</h4><span class="count">${formatNumber(item.count)} records</span></div><div class="result-meta"><span>${escapeHtml(item.status)}</span><span>${escapeHtml(contacts)}</span><span>${formatNumber(item.needsReview)} review</span></div><div class="downloads">${links}</div></article>`;
+    return `<article class="result-card"><div class="result-top"><h4 title="${escapeHtml(item.url)}">${escapeHtml(hostname(item.url))}</h4><span class="count">${formatNumber(item.count)} records</span></div><div class="result-meta"><span>${escapeHtml(item.status)}</span><span>${escapeHtml(contacts)}</span><span>${escapeHtml(readiness)}</span>${media ? `<span>${escapeHtml(media)}</span>` : ''}</div><div class="downloads">${links}</div></article>`;
   }).join('');
 }
 

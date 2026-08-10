@@ -286,6 +286,9 @@ async function runJob(job) {
         count: records.length,
         status: report?.status || 'complete',
         needsReview: report?.quality?.needsReview || 0,
+        importReady: report?.quality?.importReady || 0,
+        blockedFromImport: report?.quality?.blockedFromImport ?? null,
+        imageCoverage: report?.quality?.imageCoverage || null,
         contactCoverage: report?.quality?.contactCoverage || null,
         downloads: {
           raw: downloadUrl(job.id, resultIndex, 'raw'),
@@ -382,7 +385,7 @@ app.post('/api/jobs', async (req, res) => {
       options: {
         deep: req.body.deep !== false,
         maxPages: positiveInteger(req.body.maxPages, 500, 1000),
-        maxDetailPages: positiveInteger(req.body.maxDetailPages, 100, 5000),
+        maxDetailPages: positiveInteger(req.body.maxDetailPages, 500, 5000),
         scopeDiscovery: req.body.scopeDiscovery === true ? true : false,
         maxScopes: positiveInteger(req.body.maxScopes, 50, 200),
         sitemap: req.body.sitemap !== false,

@@ -78,7 +78,7 @@
             <fieldset>
               <legend>Output mode</legend>
               <div class="choice-grid">
-                <label class="choice active"><input type="radio" name="aiMode" value="map" checked><span><strong>Reusable mapping</strong><small>Recommended. Applies a reviewed source recipe.</small></span></label>
+                <label class="choice active"><input type="radio" name="aiMode" value="map" checked><span><strong>Reusable mapping</strong><small>Recommended. Generates and validates one AI recipe per source.</small></span></label>
                 <label class="choice"><input type="radio" name="aiMode" value="record"><span><strong>AI per record</strong><small>Maximum flexibility with higher API usage.</small></span></label>
                 <label class="choice"><input type="radio" name="aiMode" value="none"><span><strong>Raw scrape</strong><small>Normalized source records without platform mapping.</small></span></label>
               </div>
@@ -89,7 +89,7 @@
             </div>
             <details>
               <summary>Advanced run limits</summary>
-              <div class="advanced-grid"><label>Maximum result pages<input id="max-pages" type="number" min="1" max="1000" value="50"></label><label>Maximum detail pages<input id="max-details" type="number" min="1" max="5000" value="100"></label></div>
+              <div class="advanced-grid"><label>Maximum result pages<input id="max-pages" type="number" min="1" max="1000" value="50"></label><label>Maximum detail pages<input id="max-details" type="number" min="1" max="5000" value="500"></label></div>
             </details>
             <button id="submit-button" class="primary-button" type="submit"><span>Start scraper run</span></button>
             <p id="form-error" class="error-message" role="alert"></p>

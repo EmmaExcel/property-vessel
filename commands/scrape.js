@@ -307,10 +307,10 @@ function extractStaticHtmlRecords(html) {
   return sources.find(([, records]) => records.length > 0) || [null, []];
 }
 
-function firstDetailRecord(html) {
+function firstDetailRecord(html, pageUrl) {
   const embedded = findBestEmbeddedPropertyData(html);
   const [, staticRecords] = extractStaticHtmlRecords(html);
-  const candidates = [embedded?.records?.[0], staticRecords[0], extractOpenGraphProperty(html)].filter(Boolean);
+  const candidates = [embedded?.records?.[0], staticRecords[0], extractOpenGraphProperty(html, pageUrl)].filter(Boolean);
   const record = candidates.reduce((merged, candidate) => mergeRecordValues(merged, candidate), {});
   if (!Object.keys(record).length) return null;
   const pageContact = extractPageContacts(html);
@@ -357,7 +357,7 @@ async function enrichWithDetailPages({ records, sourceUrl, session, maxPages, on
       try {
         const response = await fetchWithRetries(session, current.url, { headers: { referer: sourceUrl } });
         if (!response.ok) continue;
-        const detail = firstDetailRecord(await response.text());
+        const detail = firstDetailRecord(await response.text(), current.url);
         if (!detail) continue;
         mergeMissingFields(current.record, detail);
         enriched += 1;
@@ -385,7 +385,7 @@ async function crawlSitemapDetailPages({ urls, sourceUrl, session, maxPages }) {
       try {
         const response = await fetchWithRetries(session, detailUrl, { headers: { referer: sourceUrl } });
         if (!response.ok) continue;
-        const detail = firstDetailRecord(await response.text());
+        const detail = firstDetailRecord(await response.text(), detailUrl);
         if (!detail) continue;
         if (!detail.url && !detail.permalink && !detail.link) detail.url = detailUrl;
         records.push(detail);
@@ -503,10 +503,14 @@ function enabled(value) {
 function isUsableNormalizedListing(record) {
   if (!record || typeof record !== 'object') return false;
   const title = String(record.title || '').trim();
-  if (/^(?:minimum|maximum)?\s*(?:price|location|bedrooms?)\s*:?$|^(?:load|show|view)\s+(?:previous|next|more|items|results)/i.test(title)) return false;
-  const evidence = [record.sourceUrl, record.address, record.images?.length, record.description, record.bedrooms, record.propertyType]
-    .filter((value) => value !== undefined && value !== null && value !== '').length;
-  return evidence >= 2 && Boolean(title || record.address || record.sourceUrl);
+  if (/^(?:minimum|maximum)?\s*(?:price|location|bedrooms?)\s*:?$|^(?:load|show|view)\s+(?:previous|next|more|items|results)|properties?\s+archive|search\s+results?|page\s+\d+\s+of\s+\d+|\.st\d+\s*\{|fill\s*:/i.test(title)) return false;
+  const hasIdentity = Boolean(title || String(record.address || '').trim());
+  const hasPrice = record.price !== undefined && record.price !== null && String(record.price).trim() !== '';
+  const hasMedia = Array.isArray(record.images) && record.images.length > 0;
+  const hasDetails = Boolean(record.description || record.bedrooms || record.propertyType);
+  // A URL plus page metadata is not a property. Require commercial evidence,
+  // or media backed by at least one property-detail field.
+  return hasIdentity && (hasPrice || (hasMedia && hasDetails));
 }
 
 async function scrape({
@@ -702,7 +706,7 @@ async function scrape({
     });
     listings = result.records;
     aiNormalization = {
-      provider: 'openrouter',
+      provider: configuredProvider.toLowerCase() === 'gemini' ? 'gemini' : 'openrouter',
       model: selectedModel,
       requested: listings.length,
       normalized: result.normalized,
